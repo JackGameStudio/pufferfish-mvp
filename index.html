@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>弹弹河豚 MVP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background: #000;
+            display: block;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 12px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="info">
+        <p>Day 1: Canvas 骨架</p>
+        <p>FPS: <span id="fps">0</span></p>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 游戏状态
+        const game = {
+            running: true,
+            deltaTime: 0,
+            lastTime: Date.now(),
+            fps: 0,
+            frameCount: 0
+        };
+
+        // 河豚对象
+        const pufferfish = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 20,
+            vx: 0,
+            vy: 0,
+            scale: 1.0
+        };
+
+        // 游戏循环
+        function gameLoop() {
+            const now = Date.now();
+            game.deltaTime = (now - game.lastTime) / 1000;
+            game.lastTime = now;
+            
+            // 更新 FPS
+            game.frameCount++;
+            if (game.frameCount % 10 === 0) {
+                game.fps = Math.round(1 / game.deltaTime);
+                document.getElementById('fps').textContent = game.fps;
+            }
+            
+            // 更新
+            update(game.deltaTime);
+            
+            // 渲染
+            render();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update(dt) {
+            // 暂时空实现
+        }
+
+        function render() {
+            // 清空画布
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制河豚（圆形）
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.arc(pufferfish.x, pufferfish.y, pufferfish.radius * pufferfish.scale, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 绘制边界
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // 启动游戏
+        gameLoop();
+    </script>
+</body>
+</html>
