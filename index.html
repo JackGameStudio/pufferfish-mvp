@@ -31,10 +31,26 @@
             left: 10px;
             color: #fff;
             font-size: 12px;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
             padding: 10px;
             border-radius: 5px;
             pointer-events: none;
+            min-width: 150px;
+        }
+        #hp-bar {
+            width: 120px;
+            height: 12px;
+            background: #333;
+            border: 2px solid #fff;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        #hp-fill {
+            width: 100%;
+            height: 100%;
+            background: #0f0;
+            transition: width 0.2s;
         }
     </style>
 </head>
@@ -44,9 +60,9 @@
         <p style="font-size: 16px; font-weight: bold; color: #0af;">🐡 弹弹河豚 MVP</p>
         <p>FPS: <span id="fps">0</span></p>
         <p style="color: #ff6;">HP: <span id="hp">100</span></p>
-        <p style="color: #0ff;">点击河豚：膨胀+旋转</p>
-        <p style="color: #0ff;">松开：向尾巴弹射</p>
-        <p style="color: #ff0;">目标：到达蓝色终点</p>
+        <div id="hp-bar"><div id="hp-fill"></div></div>
+        <p style="color: #0ff; margin-top: 5px;">点击河豚膨胀</p>
+        <p style="color: #0ff;">松开弹射</p>
     </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -87,13 +103,15 @@
             inflateTime: 0,
             maxInflateTime: 1.0,
             deflateSpeed: 3.0,
-            launchVelocity: 900,        // 提升弹射速度
-            friction: 0.992,            // 调整阻力
+            launchVelocity: 900,
+            friction: 0.992,
             rotation: -Math.PI / 2,
-            rotationSpeed: 6,           // 加快旋转速度
-            hp: 100,                    // 生命值
+            rotationSpeed: 6,
+            hp: 100,
             maxHp: 100,
-            invincibleTime: 0           // 无敌时间
+            invincibleTime: 0,
+            waveOffset: 0,           // 波浪抖动偏移
+            waveAmplitude: 0         // 波浪振幅
         };
 
         const input = {
@@ -112,7 +130,6 @@
             input.mouseY = e.clientY - rect.top;
             input.mouseDown = true;
             
-            // 检查是否点击在鱼身上
             const dx = input.mouseX - pufferfish.x;
             const dy = input.mouseY - pufferfish.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -122,7 +139,6 @@
                 input.clickingFish = true;
             }
             
-            // 过关或死亡后重新开始
             if (gameState.finished || gameState.gameOver) {
                 initLevel();
             }
@@ -186,6 +202,8 @@
             pufferfish.rotation = -Math.PI / 2;
             pufferfish.hp = pufferfish.maxHp;
             pufferfish.invincibleTime = 0;
+            pufferfish.waveOffset = 0;
+            pufferfish.waveAmplitude = 0;
             
             gameState.finished = false;
             gameState.gameOver = false;
@@ -201,30 +219,23 @@
                 const minDist = puffRadius + obstacle.radius;
                 
                 if (dist < minDist && pufferfish.invincibleTime <= 0) {
-                    // 计算伤害（基于膨胀大小）
-                    const damage = 10 + (pufferfish.scale - 1.0) * 40; // 膨胀越大伤害越高
+                    const damage = 10 + (pufferfish.scale - 1.0) * 40;
                     pufferfish.hp -= damage;
-                    
-                    // 设置无敌时间
                     pufferfish.invincibleTime = 0.5;
                     
-                    // 物理反弹
                     const overlap = minDist - dist;
                     const nx = dx / dist;
                     const ny = dy / dist;
                     
-                    // 推开
                     pufferfish.x += nx * overlap;
                     pufferfish.y += ny * overlap;
                     
-                    // 反弹速度
                     const speed = Math.sqrt(pufferfish.vx * pufferfish.vx + pufferfish.vy * pufferfish.vy);
                     pufferfish.vx = nx * speed * 0.8;
                     pufferfish.vy = ny * speed * 0.8;
                     
                     onHit();
                     
-                    // 检查死亡
                     if (pufferfish.hp <= 0) {
                         pufferfish.hp = 0;
                         gameState.gameOver = true;
@@ -242,6 +253,11 @@
             
             if (dist < level.endRadius) {
                 gameState.finished = true;
+                // 停下所有运动
+                pufferfish.vx = 0;
+                pufferfish.vy = 0;
+                pufferfish.scale = 1.0;
+                pufferfish.waveAmplitude = 0;
                 onFinish();
             }
         }
@@ -321,7 +337,9 @@
                 );
             }
             
-            pufferfish.scale = 1.0 + (pufferfish.inflateTime / pufferfish.maxInflateTime) * 0.5;
+            // 缩放：膨胀时变大，弹射后渐进变小
+            const targetScale = 1.0 + (pufferfish.inflateTime / pufferfish.maxInflateTime) * 0.5;
+            pufferfish.scale = pufferfish.scale * 0.9 + targetScale * 0.1;
             
             // 松手弹射
             if (clickReleased && pufferfish.inflateTime > 0.2) {
@@ -329,8 +347,31 @@
                 const tailDirection = pufferfish.rotation + Math.PI;
                 pufferfish.vx = Math.cos(tailDirection) * pufferfish.launchVelocity * launchPower;
                 pufferfish.vy = Math.sin(tailDirection) * pufferfish.launchVelocity * launchPower;
+                
+                // 设置波浪抖动振幅（速度越快，抖动越大）
+                pufferfish.waveAmplitude = launchPower * 8;
+                
                 pufferfish.inflateTime = 0;
                 onLaunch();
+            }
+            
+            // 波浪抖动（弹射时）
+            if (pufferfish.waveAmplitude > 0) {
+                pufferfish.waveOffset += dt * 15;  // 波浪频率
+                const wave = Math.sin(pufferfish.waveOffset) * pufferfish.waveAmplitude;
+                // 垂直于运动方向的抖动
+                const speed = Math.sqrt(pufferfish.vx * pufferfish.vx + pufferfish.vy * pufferfish.vy);
+                if (speed > 10) {
+                    const perpX = -pufferfish.vy / speed;
+                    const perpY = pufferfish.vx / speed;
+                    pufferfish.x += perpX * wave * dt;
+                    pufferfish.y += perpY * wave * dt;
+                }
+                // 波浪振幅逐渐减小
+                pufferfish.waveAmplitude *= 0.95;
+                if (pufferfish.waveAmplitude < 0.5) {
+                    pufferfish.waveAmplitude = 0;
+                }
             }
             
             // 水的阻力
@@ -368,6 +409,8 @@
             
             // 更新 HP 显示
             document.getElementById('hp').textContent = Math.round(pufferfish.hp);
+            document.getElementById('hp-fill').style.width = (pufferfish.hp / pufferfish.maxHp * 100) + '%';
+            document.getElementById('hp-fill').style.background = pufferfish.hp > 30 ? '#0f0' : '#f00';
         }
 
         function render() {
@@ -412,7 +455,7 @@
                 ctx.globalAlpha = 0.5;
             }
             
-            // 根据颜色判断状态
+            // 根据状态判断颜色
             if (pufferfish.hp <= 0) {
                 ctx.fillStyle = '#888';
             } else if (input.clickingFish && pufferfish.inflateTime > 0) {
@@ -470,15 +513,6 @@
                 const progress = pufferfish.inflateTime / pufferfish.maxInflateTime;
                 ctx.fillRect(pufferfish.x - 50, pufferfish.y + radius * 2.5, 100 * progress, 10);
             }
-            
-            // 绘制 HP 条
-            ctx.fillStyle = '#333';
-            ctx.fillRect(pufferfish.x - 40, pufferfish.y - radius * 2.5 - 15, 80, 8);
-            ctx.fillStyle = pufferfish.hp > 30 ? '#00ff00' : '#ff0000';
-            ctx.fillRect(pufferfish.x - 40, pufferfish.y - radius * 2.5 - 15, 80 * (pufferfish.hp / pufferfish.maxHp), 8);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(pufferfish.x - 40, pufferfish.y - radius * 2.5 - 15, 80, 8);
             
             // 绘制状态文本
             ctx.fillStyle = '#fff';
