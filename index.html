@@ -338,8 +338,8 @@
             }
             
             // 缩放：膨胀时变大，弹射后渐进变小
-            const targetScale = 1.0 + (pufferfish.inflateTime / pufferfish.maxInflateTime) * 0.5;
-            pufferfish.scale = pufferfish.scale * 0.9 + targetScale * 0.1;
+            const targetScale = 1.0 + (pufferfish.inflateTime / pufferfish.maxInflateTime) * 0.8;  // 增大到 0.8
+            pufferfish.scale = pufferfish.scale * 0.85 + targetScale * 0.15;  // 加快变化速度
             
             // 松手弹射
             if (clickReleased && pufferfish.inflateTime > 0.2) {
@@ -349,7 +349,7 @@
                 pufferfish.vy = Math.sin(tailDirection) * pufferfish.launchVelocity * launchPower;
                 
                 // 设置波浪抖动振幅（速度越快，抖动越大）
-                pufferfish.waveAmplitude = launchPower * 8;
+                pufferfish.waveAmplitude = launchPower * 20;  // 增大到 20
                 
                 pufferfish.inflateTime = 0;
                 onLaunch();
@@ -357,7 +357,7 @@
             
             // 波浪抖动（弹射时）
             if (pufferfish.waveAmplitude > 0) {
-                pufferfish.waveOffset += dt * 15;  // 波浪频率
+                pufferfish.waveOffset += dt * 25;  // 增加频率到 25
                 const wave = Math.sin(pufferfish.waveOffset) * pufferfish.waveAmplitude;
                 // 垂直于运动方向的抖动
                 const speed = Math.sqrt(pufferfish.vx * pufferfish.vx + pufferfish.vy * pufferfish.vy);
@@ -368,7 +368,7 @@
                     pufferfish.y += perpY * wave * dt;
                 }
                 // 波浪振幅逐渐减小
-                pufferfish.waveAmplitude *= 0.95;
+                pufferfish.waveAmplitude *= 0.98;  // 减慢衰减
                 if (pufferfish.waveAmplitude < 0.5) {
                     pufferfish.waveAmplitude = 0;
                 }
