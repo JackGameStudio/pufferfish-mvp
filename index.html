@@ -38,8 +38,9 @@
 <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <div id="info">
-        <p>Day 1: Canvas 骨架</p>
+        <p>Day 2: 键盘+触摸移动</p>
         <p>FPS: <span id="fps">0</span></p>
+        <p>控制: 方向键/WASD 或 鼠标拖动</p>
     </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -64,6 +65,58 @@
             scale: 1.0
         };
 
+        // 输入状态
+        const input = {
+            keys: {},
+            touchX: null,
+            touchY: null,
+            touching: false
+        };
+
+        // 键盘事件
+        document.addEventListener('keydown', (e) => {
+            input.keys[e.key] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            input.keys[e.key] = false;
+        });
+
+        // 触摸事件
+        canvas.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            input.touchX = touch.clientX - rect.left;
+            input.touchY = touch.clientY - rect.top;
+            input.touching = true;
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            input.touchX = touch.clientX - rect.left;
+            input.touchY = touch.clientY - rect.top;
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            input.touching = false;
+        });
+
+        // 鼠标事件（用于桌面测试）
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            input.touchX = e.clientX - rect.left;
+            input.touchY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            input.touching = true;
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            input.touching = false;
+        });
+
         // 游戏循环
         function gameLoop() {
             const now = Date.now();
@@ -75,7 +128,7 @@
             if (game.frameCount % 10 === 0) {
                 game.fps = Math.round(1 / game.deltaTime);
                 document.getElementById('fps').textContent = game.fps;
-            }
+14 }
             
             // 更新
             update(game.deltaTime);
@@ -87,7 +140,45 @@
         }
 
         function update(dt) {
-            // 暂时空实现
+            const speed = 300; // px/s
+            
+            // 键盘控制
+            if (input.keys['ArrowUp'] || input.keys['w']) {
+                pufferfish.vy = -speed;
+            } else if (input.keys['ArrowDown'] || input.keys['s']) {
+                pufferfish.vy = speed;
+            } else {
+                pufferfish.vy = 0;
+            }
+            
+            if (input.keys['ArrowLeft'] || input.keys['a']) {
+                pufferfish.vx = -speed;
+            } else if (input.keys['ArrowRight'] || input.keys['d']) {
+                pufferfish.vx = speed;
+            } else {
+                pufferfish.vx = 0;
+            }
+            
+            // 触摸控制（指向目标）
+            if (input.touching && input.touchX !== null) {
+                const dx = input.touchX - pufferfish.x;
+                const dy = input.touchY - pufferfish.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 10) {
+                    pufferfish.vx = (dx / dist) * speed;
+                    pufferfish.vy = (dy / dist) * speed;
+                }
+            }
+            
+            // 更新位置
+            pufferfish.x += pufferfish.vx * dt;
+            pufferfish.y += pufferfish.vy * dt;
+            
+            // 边界约束
+            const margin = pufferfish.radius * pufferfish.scale;
+            pufferfish.x = Math.max(margin, Math.min(canvas.width - margin, pufferfish.x));
+            pufferfish.y = Math.max(margin, Math.min(canvas.height - margin, pufferfish.y));
         }
 
         function render() {
