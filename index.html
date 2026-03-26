@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>弹弹河豚 MVP</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             display: flex;
             justify-content: center;
@@ -35,7 +31,6 @@
             padding: 10px;
             border-radius: 5px;
             pointer-events: none;
-            min-width: 150px;
         }
         #hp-bar {
             width: 120px;
@@ -68,19 +63,12 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        const game = {
-            deltaTime: 0,
-            lastTime: Date.now(),
-            fps: 0,
-            frameCount: 0
-        };
+        let lastTime = Date.now();
+        let fps = 0, frameCount = 0;
 
         const level = {
-            startX: 400,
-            startY: 550,
-            endX: 400,
-            endY: 50,
-            endRadius: 40,
+            startX: 400, startY: 550,
+            endX: 400, endY: 50, endRadius: 40,
             obstacles: [
                 { x: 200, y: 200, radius: 30 },
                 { x: 400, y: 300, radius: 30 },
@@ -88,459 +76,292 @@
             ]
         };
 
-        const gameState = {
-            finished: false,
-            gameOver: false
-        };
+        const state = { finished: false, gameOver: false };
 
-        const pufferfish = {
-            x: 400,
-            y: 550,
-            radius: 20,
-            vx: 0,
-            vy: 0,
+        const fish = {
+            x: 400, y: 550,
+            radius: 20, vx: 0, vy: 0,
             scale: 1.0,
-            inflateTime: 0,
-            maxInflateTime: 1.0,
-            deflateSpeed: 3.0,
-            launchVelocity: 900,
-            friction: 0.992,
-            rotation: -Math.PI / 2,
-            rotationSpeed: 6,
-            hp: 100,
-            maxHp: 100,
-            invincibleTime: 0,
-            waveOffset: 0,           // 波浪抖动偏移
-            waveAmplitude: 0         // 波浪振幅
+            inflate: 0, maxInflate: 1.0,
+            launchVel: 900, friction: 0.992,
+            rotation: -Math.PI / 2, rotSpeed: 6,
+            hp: 100, maxHp: 100,
+            invincible: 0,
+            waveAmp: 0, waveOffset: 0,
+            launchScale: 1.0, launchTime: 0
         };
 
-        const input = {
-            mouseDown: false,
-            mouseX: 0,
-            mouseY: 0,
-            clickingFish: false,
-            clickReleased: false,
-            clickPressedLastFrame: false
-        };
+        const input = { mouseDown: false, mouseX: 0, mouseY: 0, clicking: false, lastClick: false };
 
-        // 鼠标事件
-        canvas.addEventListener('mousedown', (e) => {
+        // 事件
+        canvas.addEventListener('mousedown', e => {
             const rect = canvas.getBoundingClientRect();
             input.mouseX = e.clientX - rect.left;
             input.mouseY = e.clientY - rect.top;
             input.mouseDown = true;
-            
-            const dx = input.mouseX - pufferfish.x;
-            const dy = input.mouseY - pufferfish.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const fishRadius = pufferfish.radius * pufferfish.scale * 1.5;
-            
-            if (dist < fishRadius) {
-                input.clickingFish = true;
-            }
-            
-            if (gameState.finished || gameState.gameOver) {
-                initLevel();
-            }
+            const dx = input.mouseX - fish.x, dy = input.mouseY - fish.y;
+            if (Math.sqrt(dx*dx + dy*dy) < fish.radius * fish.scale * 1.5) input.clicking = true;
+            if (state.finished || state.gameOver) init();
         });
-
-        canvas.addEventListener('mouseup', (e) => {
-            input.mouseDown = false;
-            input.clickingFish = false;
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
+        canvas.addEventListener('mouseup', () => { input.mouseDown = false; input.clicking = false; });
+        canvas.addEventListener('mousemove', e => {
             const rect = canvas.getBoundingClientRect();
             input.mouseX = e.clientX - rect.left;
             input.mouseY = e.clientY - rect.top;
         });
-
-        // 触摸事件
-        canvas.addEventListener('touchstart', (e) => {
+        canvas.addEventListener('touchstart', e => {
             e.preventDefault();
-            const touch = e.touches[0];
-            const rect = canvas.getBoundingClientRect();
-            input.mouseX = touch.clientX - rect.left;
-            input.mouseY = touch.clientY - rect.top;
+            const t = e.touches[0], rect = canvas.getBoundingClientRect();
+            input.mouseX = t.clientX - rect.left;
+            input.mouseY = t.clientY - rect.top;
             input.mouseDown = true;
-            
-            const dx = input.mouseX - pufferfish.x;
-            const dy = input.mouseY - pufferfish.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const fishRadius = pufferfish.radius * pufferfish.scale * 1.5;
-            
-            if (dist < fishRadius) {
-                input.clickingFish = true;
-            }
-            
-            if (gameState.finished || gameState.gameOver) {
-                initLevel();
-            }
+            const dx = input.mouseX - fish.x, dy = input.mouseY - fish.y;
+            if (Math.sqrt(dx*dx + dy*dy) < fish.radius * fish.scale * 1.5) input.clicking = true;
+            if (state.finished || state.gameOver) init();
         });
-
-        canvas.addEventListener('touchmove', (e) => {
+        canvas.addEventListener('touchmove', e => {
             e.preventDefault();
-            const touch = e.touches[0];
-            const rect = canvas.getBoundingClientRect();
-            input.mouseX = touch.clientX - rect.left;
-            input.mouseY = touch.clientY - rect.top;
+            const t = e.touches[0], rect = canvas.getBoundingClientRect();
+            input.mouseX = t.clientX - rect.left;
+            input.mouseY = t.clientY - rect.top;
         });
+        canvas.addEventListener('touchend', e => { e.preventDefault(); input.mouseDown = false; input.clicking = false; });
 
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            input.mouseDown = false;
-            input.clickingFish = false;
-        });
-
-        function initLevel() {
-            pufferfish.x = level.startX;
-            pufferfish.y = level.startY;
-            pufferfish.vx = 0;
-            pufferfish.vy = 0;
-            pufferfish.scale = 1.0;
-            pufferfish.inflateTime = 0;
-            pufferfish.rotation = -Math.PI / 2;
-            pufferfish.hp = pufferfish.maxHp;
-            pufferfish.invincibleTime = 0;
-            pufferfish.waveOffset = 0;
-            pufferfish.waveAmplitude = 0;
-            
-            gameState.finished = false;
-            gameState.gameOver = false;
+        function init() {
+            fish.x = level.startX; fish.y = level.startY;
+            fish.vx = 0; fish.vy = 0;
+            fish.scale = 1.0; fish.inflate = 0;
+            fish.rotation = -Math.PI / 2;
+            fish.hp = fish.maxHp;
+            fish.invincible = 0;
+            fish.waveAmp = 0; fish.launchScale = 1.0; fish.launchTime = 0;
+            state.finished = false; state.gameOver = false;
         }
 
-        function checkCollisions() {
-            const puffRadius = pufferfish.radius * pufferfish.scale;
-            
-            for (let obstacle of level.obstacles) {
-                const dx = pufferfish.x - obstacle.x;
-                const dy = pufferfish.y - obstacle.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const minDist = puffRadius + obstacle.radius;
-                
-                if (dist < minDist && pufferfish.invincibleTime <= 0) {
-                    const damage = 10 + (pufferfish.scale - 1.0) * 40;
-                    pufferfish.hp -= damage;
-                    pufferfish.invincibleTime = 0.5;
-                    
-                    const overlap = minDist - dist;
-                    const nx = dx / dist;
-                    const ny = dy / dist;
-                    
-                    pufferfish.x += nx * overlap;
-                    pufferfish.y += ny * overlap;
-                    
-                    const speed = Math.sqrt(pufferfish.vx * pufferfish.vx + pufferfish.vy * pufferfish.vy);
-                    pufferfish.vx = nx * speed * 0.8;
-                    pufferfish.vy = ny * speed * 0.8;
-                    
-                    onHit();
-                    
-                    if (pufferfish.hp <= 0) {
-                        pufferfish.hp = 0;
-                        gameState.gameOver = true;
-                    }
-                    
+        function checkCollision() {
+            const r = fish.radius * fish.scale;
+            for (let o of level.obstacles) {
+                const dx = fish.x - o.x, dy = fish.y - o.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < r + o.radius && fish.invincible <= 0) {
+                    const dmg = 10 + (fish.scale - 1) * 40;
+                    fish.hp -= dmg;
+                    fish.invincible = 0.5;
+                    const overlap = r + o.radius - dist;
+                    const nx = dx/dist, ny = dy/dist;
+                    fish.x += nx * overlap; fish.y += ny * overlap;
+                    const speed = Math.sqrt(fish.vx*fish.vx + fish.vy*fish.vy);
+                    fish.vx = nx * speed * 0.8; fish.vy = ny * speed * 0.8;
+                    playSound(150, 0.3, 'square');
+                    if (fish.hp <= 0) { fish.hp = 0; state.gameOver = true; }
                     return;
                 }
             }
         }
 
-        function checkEndZone() {
-            const dx = pufferfish.x - level.endX;
-            const dy = pufferfish.y - level.endY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist < level.endRadius) {
-                gameState.finished = true;
-                // 停下所有运动
-                pufferfish.vx = 0;
-                pufferfish.vy = 0;
-                pufferfish.scale = 1.0;
-                pufferfish.waveAmplitude = 0;
-                onFinish();
+        function checkEnd() {
+            const dx = fish.x - level.endX, dy = fish.y - level.endY;
+            if (Math.sqrt(dx*dx + dy*dy) < level.endRadius) {
+                state.finished = true;
+                fish.vx = 0; fish.vy = 0;
+                playSound(800, 0.3);
             }
         }
 
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-        function playSound(frequency, duration, type = 'sine') {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(f, d, t='sine') {
             try {
-                const osc = audioContext.createOscillator();
-                const gain = audioContext.createGain();
-                osc.connect(gain);
-                gain.connect(audioContext.destination);
-                osc.frequency.value = frequency;
-                osc.type = type;
-                gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-                osc.start(audioContext.currentTime);
-                osc.stop(audioContext.currentTime + duration);
-            } catch (e) {}
-        }
-
-        function onLaunch() {
-            playSound(400, 0.1);
-        }
-
-        function onHit() {
-            playSound(150, 0.3, 'square');
-        }
-
-        function onFinish() {
-            playSound(800, 0.3);
-        }
-
-        function gameLoop() {
-            const now = Date.now();
-            game.deltaTime = (now - game.lastTime) / 1000;
-            game.lastTime = now;
-            
-            game.frameCount++;
-            if (game.frameCount % 10 === 0) {
-                game.fps = Math.round(1 / game.deltaTime);
-                document.getElementById('fps').textContent = game.fps;
-            }
-            
-            update(game.deltaTime);
-            
-            if (!gameState.finished && !gameState.gameOver) {
-                checkCollisions();
-                checkEndZone();
-            }
-            
-            render();
-            requestAnimationFrame(gameLoop);
+                const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.frequency.value = f; osc.type = t;
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d);
+                osc.start(); osc.stop(audioCtx.currentTime + d);
+            } catch(e) {}
         }
 
         function update(dt) {
-            // 更新无敌时间
-            if (pufferfish.invincibleTime > 0) {
-                pufferfish.invincibleTime -= dt;
-            }
+            if (fish.invincible > 0) fish.invincible -= dt;
             
-            // 检测点击释放
-            const clickReleased = input.clickPressedLastFrame && !input.clickingFish;
-            input.clickPressedLastFrame = input.clickingFish;
+            const released = input.lastClick && !input.clicking;
+            input.lastClick = input.clicking;
             
-            // 膨胀逻辑
-            if (input.clickingFish) {
-                pufferfish.inflateTime = Math.min(
-                    pufferfish.inflateTime + dt,
-                    pufferfish.maxInflateTime
-                );
-                pufferfish.rotation += pufferfish.rotationSpeed * dt;
+            // 膨胀
+            if (input.clicking) {
+                fish.inflate = Math.min(fish.inflate + dt, fish.maxInflate);
+                fish.rotation += fish.rotSpeed * dt;
             } else {
-                pufferfish.inflateTime = Math.max(
-                    pufferfish.inflateTime - dt * pufferfish.deflateSpeed,
-                    0
-                );
+                fish.inflate = Math.max(fish.inflate - dt * 3, 0);
             }
             
-            // 缩放：膨胀时变大，弹射后渐进变小
-            const targetScale = 1.0 + (pufferfish.inflateTime / pufferfish.maxInflateTime) * 0.8;  // 增大到 0.8
-            pufferfish.scale = pufferfish.scale * 0.85 + targetScale * 0.15;  // 加快变化速度
+            // 缩放：膨胀快，缩小慢（2秒）
+            const targetScale = 1 + (fish.inflate / fish.maxInflate) * 0.8;
+            const lerp = fish.inflate > 0 ? 0.1 : 0.025;  // 膨胀快，缩小慢
+            fish.scale = fish.scale * (1-lerp) + targetScale * lerp;
             
-            // 松手弹射
-            if (clickReleased && pufferfish.inflateTime > 0.2) {
-                const launchPower = pufferfish.inflateTime / pufferfish.maxInflateTime;
-                const tailDirection = pufferfish.rotation + Math.PI;
-                pufferfish.vx = Math.cos(tailDirection) * pufferfish.launchVelocity * launchPower;
-                pufferfish.vy = Math.sin(tailDirection) * pufferfish.launchVelocity * launchPower;
-                
-                // 设置波浪抖动振幅（速度越快，抖动越大）
-                pufferfish.waveAmplitude = launchPower * 20;  // 增大到 20
-                
-                pufferfish.inflateTime = 0;
-                onLaunch();
+            // 弹射
+            if (released && fish.inflate > 0.2) {
+                const power = fish.inflate / fish.maxInflate;
+                const dir = fish.rotation + Math.PI;
+                fish.vx = Math.cos(dir) * fish.launchVel * power;
+                fish.vy = Math.sin(dir) * fish.launchVel * power;
+                fish.launchScale = fish.scale;
+                fish.launchTime = 0;
+                fish.waveAmp = power * 25;
+                fish.inflate = 0;
+                playSound(400, 0.1);
             }
             
-            // 波浪抖动（弹射时）
-            if (pufferfish.waveAmplitude > 0) {
-                pufferfish.waveOffset += dt * 25;  // 增加频率到 25
-                const wave = Math.sin(pufferfish.waveOffset) * pufferfish.waveAmplitude;
-                // 垂直于运动方向的抖动
-                const speed = Math.sqrt(pufferfish.vx * pufferfish.vx + pufferfish.vy * pufferfish.vy);
+            // 弹射后渐进缩小（2秒完成）
+            if (fish.launchScale > 1.01 && fish.launchTime < 2.0) {
+                fish.launchTime += dt;
+                const progress = Math.min(fish.launchTime / 2.0, 1.0);
+                fish.scale = fish.launchScale * (1 - progress) + 1.0 * progress;
+            }
+            
+            // 波浪抖动
+            if (fish.waveAmp > 0) {
+                fish.waveOffset += dt * 30;
+                const wave = Math.sin(fish.waveOffset) * fish.waveAmp;
+                const speed = Math.sqrt(fish.vx*fish.vx + fish.vy*fish.vy);
                 if (speed > 10) {
-                    const perpX = -pufferfish.vy / speed;
-                    const perpY = pufferfish.vx / speed;
-                    pufferfish.x += perpX * wave * dt;
-                    pufferfish.y += perpY * wave * dt;
+                    fish.x += (-fish.vy / speed) * wave * dt;
+                    fish.y += (fish.vx / speed) * wave * dt;
                 }
-                // 波浪振幅逐渐减小
-                pufferfish.waveAmplitude *= 0.98;  // 减慢衰减
-                if (pufferfish.waveAmplitude < 0.5) {
-                    pufferfish.waveAmplitude = 0;
-                }
+                fish.waveAmp *= 0.97;
+                if (fish.waveAmp < 0.5) fish.waveAmp = 0;
             }
             
-            // 水的阻力
-            pufferfish.vx *= pufferfish.friction;
-            pufferfish.vy *= pufferfish.friction;
+            // 阻力
+            fish.vx *= fish.friction; fish.vy *= fish.friction;
             
-            // 速度太慢时归零
-            const currentSpeed = Math.sqrt(pufferfish.vx * pufferfish.vx + pufferfish.vy * pufferfish.vy);
-            if (currentSpeed < 5) {
-                pufferfish.vx = 0;
-                pufferfish.vy = 0;
+            const speed = Math.sqrt(fish.vx*fish.vx + fish.vy*fish.vy);
+            if (speed < 5) { fish.vx = 0; fish.vy = 0; }
+            
+            // 运动时旋转跟随方向
+            if (speed > 10 && !input.clicking) {
+                const targetRot = Math.atan2(fish.vy, fish.vx);
+                let diff = targetRot - fish.rotation;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                fish.rotation += diff * 5 * dt;
             }
             
-            pufferfish.x += pufferfish.vx * dt;
-            pufferfish.y += pufferfish.vy * dt;
+            fish.x += fish.vx * dt; fish.y += fish.vy * dt;
             
-            // 边界碰撞
-            const margin = pufferfish.radius * pufferfish.scale;
+            // 边界
+            const m = fish.radius * fish.scale;
+            if (fish.x < m) { fish.x = m; fish.vx = Math.abs(fish.vx) * 0.8; }
+            if (fish.x > canvas.width - m) { fish.x = canvas.width - m; fish.vx = -Math.abs(fish.vx) * 0.8; }
+            if (fish.y < m) { fish.y = m; fish.vy = Math.abs(fish.vy) * 0.8; }
+            if (fish.y > canvas.height - m) { fish.y = canvas.height - m; fish.vy = -Math.abs(fish.vy) * 0.8; }
             
-            if (pufferfish.x - margin < 0) {
-                pufferfish.x = margin;
-                pufferfish.vx = Math.abs(pufferfish.vx) * 0.8;
-            } else if (pufferfish.x + margin > canvas.width) {
-                pufferfish.x = canvas.width - margin;
-                pufferfish.vx = -Math.abs(pufferfish.vx) * 0.8;
-            }
-            
-            if (pufferfish.y - margin < 0) {
-                pufferfish.y = margin;
-                pufferfish.vy = Math.abs(pufferfish.vy) * 0.8;
-            } else if (pufferfish.y + margin > canvas.height) {
-                pufferfish.y = canvas.height - margin;
-                pufferfish.vy = -Math.abs(pufferfish.vy) * 0.8;
-            }
-            
-            // 更新 HP 显示
-            document.getElementById('hp').textContent = Math.round(pufferfish.hp);
-            document.getElementById('hp-fill').style.width = (pufferfish.hp / pufferfish.maxHp * 100) + '%';
-            document.getElementById('hp-fill').style.background = pufferfish.hp > 30 ? '#0f0' : '#f00';
+            document.getElementById('hp').textContent = Math.round(fish.hp);
+            document.getElementById('hp-fill').style.width = (fish.hp/fish.maxHp*100) + '%';
+            document.getElementById('hp-fill').style.background = fish.hp > 30 ? '#0f0' : '#f00';
         }
 
         function render() {
             ctx.fillStyle = '#001030';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // 绘制起点
-            ctx.fillStyle = '#00ff00';
-            ctx.beginPath();
-            ctx.arc(level.startX, level.startY, 15, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#fff';
-            ctx.font = '10px Arial';
-            ctx.textAlign = 'center';
+            // 起点
+            ctx.fillStyle = '#0f0';
+            ctx.beginPath(); ctx.arc(level.startX, level.startY, 15, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.font = '10px Arial'; ctx.textAlign = 'center';
             ctx.fillText('START', level.startX, level.startY + 25);
             
-            // 绘制终点
-            ctx.fillStyle = '#0088ff';
-            ctx.beginPath();
-            ctx.arc(level.endX, level.endY, level.endRadius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#fff';
+            // 终点
+            ctx.fillStyle = '#08f';
+            ctx.beginPath(); ctx.arc(level.endX, level.endY, level.endRadius, 0, Math.PI*2); ctx.fill();
             ctx.fillText('END', level.endX, level.endY + level.endRadius + 15);
             
-            // 绘制障碍物
-            ctx.fillStyle = '#ff0000';
-            for (let obstacle of level.obstacles) {
-                ctx.beginPath();
-                ctx.arc(obstacle.x, obstacle.y, obstacle.radius, 0, Math.PI * 2);
-                ctx.fill();
+            // 障碍
+            ctx.fillStyle = '#f00';
+            for (let o of level.obstacles) {
+                ctx.beginPath(); ctx.arc(o.x, o.y, o.radius, 0, Math.PI*2); ctx.fill();
             }
             
-            // 绘制河豚
+            // 鱼
             ctx.save();
-            ctx.translate(pufferfish.x, pufferfish.y);
-            ctx.rotate(pufferfish.rotation);
+            ctx.translate(fish.x, fish.y);
+            ctx.rotate(fish.rotation);
+            const r = fish.radius * fish.scale;
             
-            const radius = pufferfish.radius * pufferfish.scale;
+            if (fish.invincible > 0 && Math.floor(fish.invincible * 10) % 2 === 0) ctx.globalAlpha = 0.5;
             
-            // 无敌时闪烁
-            if (pufferfish.invincibleTime > 0 && Math.floor(pufferfish.invincibleTime * 10) % 2 === 0) {
-                ctx.globalAlpha = 0.5;
-            }
+            if (fish.hp <= 0) ctx.fillStyle = '#888';
+            else if (input.clicking && fish.inflate > 0) ctx.fillStyle = '#ff0';
+            else if (speed > 10) ctx.fillStyle = '#f60';
+            else ctx.fillStyle = '#0f0';
             
-            // 根据状态判断颜色
-            if (pufferfish.hp <= 0) {
-                ctx.fillStyle = '#888';
-            } else if (input.clickingFish && pufferfish.inflateTime > 0) {
-                ctx.fillStyle = '#ffff00';
-            } else if (Math.abs(pufferfish.vx) > 10 || Math.abs(pufferfish.vy) > 10) {
-                ctx.fillStyle = '#ff6600';
-            } else {
-                ctx.fillStyle = '#00ff00';
-            }
-            
-            // 绘制身体（椭圆）
+            // 身体
+            ctx.beginPath(); ctx.ellipse(0, 0, r*1.3, r, 0, 0, Math.PI*2); ctx.fill();
+            // 尾巴
             ctx.beginPath();
-            ctx.ellipse(0, 0, radius * 1.3, radius, 0, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // 绘制尾巴
-            ctx.beginPath();
-            ctx.moveTo(-radius * 0.8, 0);
-            ctx.lineTo(-radius * 1.8, -radius * 0.5);
-            ctx.lineTo(-radius * 1.8, radius * 0.5);
-            ctx.closePath();
-            ctx.fill();
-            
-            // 绘制眼睛
+            ctx.moveTo(-r*0.8, 0);
+            ctx.lineTo(-r*1.8, -r*0.5);
+            ctx.lineTo(-r*1.8, r*0.5);
+            ctx.closePath(); ctx.fill();
+            // 眼睛
             ctx.fillStyle = '#fff';
-            ctx.beginPath();
-            ctx.arc(radius * 0.6, -radius * 0.3, radius * 0.25, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(r*0.6, -r*0.3, r*0.25, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = '#000';
+            ctx.beginPath(); ctx.arc(r*0.7, -r*0.3, r*0.12, 0, Math.PI*2); ctx.fill();
+            // 方向指针
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(r*0.8, 0); ctx.lineTo(r*1.5, 0); ctx.stroke();
             ctx.beginPath();
-            ctx.arc(radius * 0.7, -radius * 0.3, radius * 0.12, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // 绘制方向指示器
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(radius * 0.8, 0);
-            ctx.lineTo(radius * 1.5, 0);
+            ctx.moveTo(r*1.5, 0);
+            ctx.lineTo(r*1.2, -r*0.3);
+            ctx.moveTo(r*1.5, 0);
+            ctx.lineTo(r*1.2, r*0.3);
             ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(radius * 1.5, 0);
-            ctx.lineTo(radius * 1.2, -radius * 0.3);
-            ctx.moveTo(radius * 1.5, 0);
-            ctx.lineTo(radius * 1.2, radius * 0.3);
-            ctx.stroke();
-            
             ctx.restore();
             
-            // 绘制膨胀进度条
-            if (input.clickingFish && pufferfish.inflateTime > 0) {
+            // 膨胀进度条
+            if (input.clicking && fish.inflate > 0) {
                 ctx.fillStyle = '#fff';
-                ctx.fillRect(pufferfish.x - 50, pufferfish.y + radius * 2.5, 100, 10);
-                ctx.fillStyle = '#ffff00';
-                const progress = pufferfish.inflateTime / pufferfish.maxInflateTime;
-                ctx.fillRect(pufferfish.x - 50, pufferfish.y + radius * 2.5, 100 * progress, 10);
+                ctx.fillRect(fish.x - 50, fish.y + r * 2.5, 100, 10);
+                ctx.fillStyle = '#ff0';
+                ctx.fillRect(fish.x - 50, fish.y + r * 2.5, 100 * (fish.inflate / fish.maxInflate), 10);
             }
             
-            // 绘制状态文本
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            
-            if (gameState.finished) {
-                ctx.fillStyle = '#00ff00';
-                ctx.fillText('🎉 过关！', canvas.width / 2, canvas.height / 2);
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#fff';
-                ctx.fillText('点击重新开始', canvas.width / 2, canvas.height / 2 + 40);
-            } else if (gameState.gameOver) {
-                ctx.fillStyle = '#ff0000';
-                ctx.fillText('💀 游戏结束', canvas.width / 2, canvas.height / 2);
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#fff';
-                ctx.fillText('点击重新开始', canvas.width / 2, canvas.height / 2 + 40);
+            // 状态文本
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center';
+            if (state.finished) {
+                ctx.fillStyle = '#0f0';
+                ctx.fillText('🎉 过关！', canvas.width/2, canvas.height/2);
+                ctx.font = '16px Arial'; ctx.fillStyle = '#fff';
+                ctx.fillText('点击重新开始', canvas.width/2, canvas.height/2 + 40);
+            } else if (state.gameOver) {
+                ctx.fillStyle = '#f00';
+                ctx.fillText('💀 游戏结束', canvas.width/2, canvas.height/2);
+                ctx.font = '16px Arial'; ctx.fillStyle = '#fff';
+                ctx.fillText('点击重新开始', canvas.width/2, canvas.height/2 + 40);
             }
             
-            // 绘制边界
-            ctx.strokeStyle = '#0af';
-            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#0af'; ctx.lineWidth = 4;
             ctx.strokeRect(0, 0, canvas.width, canvas.height);
         }
 
-        initLevel();
-        gameLoop();
+        function loop() {
+            const now = Date.now(), dt = (now - lastTime) / 1000;
+            lastTime = now;
+            frameCount++;
+            if (frameCount % 10 === 0) {
+                fps = Math.round(1 / dt);
+                document.getElementById('fps').textContent = fps;
+            }
+            
+            update(dt);
+            if (!state.finished && !state.gameOver) { checkCollision(); checkEnd(); }
+            render();
+            requestAnimationFrame(loop);
+        }
+
+        init();
+        loop();
     </script>
 </body>
 </html>
