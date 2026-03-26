@@ -38,7 +38,7 @@
 <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <div id="info">
-        <p>Day 5: 测试关卡</p>
+        <p>Day 6: 碰撞反馈 + 音效</p>
         <p>FPS: <span id="fps">0</span></p>
         <p>控制: 空格膨胀，松开弹射</p>
     </div>
@@ -111,6 +111,12 @@
             if (e.key === ' ') {
                 input.space = true;
                 input.spacePressed = true;
+                
+                // 过关或碰撞后按空格重新开始
+                if (gameState.finished || gameState.hitObstacle) {
+                    initLevel();
+                }
+                
                 e.preventDefault();
             }
             input.keys[e.key] = true;
@@ -187,6 +193,7 @@
                 if (dist < puffRadius + obstacle.radius) {
                     gameState.hitObstacle = true;
                     gameState.hitTime = 0.5;
+                    onHit();
                     return;
                 }
             }
@@ -199,6 +206,7 @@
             
             if (dist < level.endRadius) {
                 gameState.finished = true;
+                onFinish();
             }
         }
 
@@ -367,18 +375,62 @@
                 ctx.fillStyle = '#00ff00';
                 ctx.fillText('🎉 过关！', canvas.width / 2, canvas.height / 2);
                 ctx.font = '14px Arial';
+                ctx.fillStyle = '#fff';
                 ctx.fillText('按空格重新开始', canvas.width / 2, canvas.height / 2 + 30);
             } else if (gameState.hitObstacle) {
                 ctx.fillStyle = '#ff0000';
                 ctx.fillText('💥 撞到障碍物！', canvas.width / 2, canvas.height / 2);
                 ctx.font = '14px Arial';
+                ctx.fillStyle = '#fff';
                 ctx.fillText('重新开始中...', canvas.width / 2, canvas.height / 2 + 30);
+            } else {
+                ctx.font = '12px Arial';
+                ctx.fillStyle = '#0ff';
+                ctx.textAlign = 'left';
+                ctx.fillText('按空格膨胀，松开弹射', 10, 30);
+                ctx.fillText(`膨胀: ${(pufferfish.inflateTime / pufferfish.maxInflateTime * 100).toFixed(0)}%`, 10, 50);
             }
             
             // 绘制边界
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // 简单的音效生成器
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(frequency, duration, type = 'sine') {
+            try {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.frequency.value = frequency;
+                osc.type = type;
+                
+                gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                
+                osc.start(audioContext.currentTime);
+                osc.stop(audioContext.currentTime + duration);
+            } catch (e) {
+                // 音频不可用，忽略
+            }
+        }
+
+        function onLaunch() {
+            playSound(400, 0.1);
+        }
+
+        function onHit() {
+            playSound(200, 0.2);
+        }
+
+        function onFinish() {
+            playSound(800, 0.3);
         }
 
         // 启动游戏
