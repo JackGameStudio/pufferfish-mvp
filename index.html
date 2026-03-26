@@ -38,9 +38,11 @@
 <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <div id="info">
-        <p>弹弹河豚 MVP</p>
+        <p style="font-size: 16px; font-weight: bold; color: #0af;">🐡 弹弹河豚 MVP</p>
         <p>FPS: <span id="fps">0</span></p>
-        <p>控制: 空格膨胀旋转，松开弹射</p>
+        <p style="color: #0ff;">按住空格：膨胀+旋转</p>
+        <p style="color: #0ff;">松开空格：向尾巴弹射</p>
+        <p style="color: #ff0;">目标：到达蓝色终点</p>
     </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -82,12 +84,12 @@
             vy: 0,
             scale: 1.0,
             inflateTime: 0,
-            maxInflateTime: 1.2,
-            deflateSpeed: 2.0,
-            launchVelocity: 600,
-            friction: 0.98,  // 水的阻力
-            rotation: -Math.PI / 2,  // 初始朝上
-            rotationSpeed: 3
+            maxInflateTime: 1.0,        // 缩短到 1 秒
+            deflateSpeed: 3.0,          // 加快缩小速度
+            launchVelocity: 700,        // 调整弹射速度
+            friction: 0.985,            // 调整水的阻力
+            rotation: -Math.PI / 2,
+            rotationSpeed: 4            // 加快旋转速度
         };
 
         const input = {
