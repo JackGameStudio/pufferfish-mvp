@@ -84,9 +84,8 @@
             inflateTime: 0,
             maxInflateTime: 1.2,
             deflateSpeed: 2.0,
-            isLaunched: false,
             launchVelocity: 600,
-            friction: 0.995,
+            friction: 0.98,  // 水的阻力
             rotation: -Math.PI / 2,  // 初始朝上
             rotationSpeed: 3
         };
@@ -234,10 +233,9 @@
             
             update(game.deltaTime);
             
-            if (pufferfish.isLaunched) {
-                checkCollisions();
-                checkEndZone();
-            }
+            // 碰撞检测（任何移动都可能碰撞）
+            checkCollisions();
+            checkEndZone();
             
             if (gameState.hitObstacle) {
                 gameState.hitTime -= game.deltaTime;
@@ -257,67 +255,45 @@
             const spaceReleased = input.spacePressedLastFrame && !input.space;
             input.spacePressedLastFrame = input.space;
             
-            if (!pufferfish.isLaunched) {
-                if (input.space) {
-                    pufferfish.inflateTime = Math.min(
-                        pufferfish.inflateTime + dt,
-                        pufferfish.maxInflateTime
-                    );
-                    // 充气时旋转
-                    pufferfish.rotation += pufferfish.rotationSpeed * dt;
-                } else {
-                    pufferfish.inflateTime = Math.max(
-                        pufferfish.inflateTime - dt * pufferfish.deflateSpeed,
-                        0
-                    );
-                }
-                
-                pufferfish.scale = 1.0 + (pufferfish.inflateTime / pufferfish.maxInflateTime) * 0.5;
-                
-                // 松手弹射：向尾巴方向
-                if (spaceReleased && pufferfish.inflateTime > 0.2) {
-                    pufferfish.isLaunched = true;
-                    const launchPower = pufferfish.inflateTime / pufferfish.maxInflateTime;
-                    
-                    // 头的方向 = rotation，尾巴方向 = rotation + π
-                    const tailDirection = pufferfish.rotation + Math.PI;
-                    pufferfish.vx = Math.cos(tailDirection) * pufferfish.launchVelocity * launchPower;
-                    pufferfish.vy = Math.sin(tailDirection) * pufferfish.launchVelocity * launchPower;
-                    
-                    pufferfish.inflateTime = 0;
-                    onLaunch();
-                }
-                
-                // 未弹射时的移动控制
-                const speedMultiplier = pufferfish.inflateTime > 0 ? 0.3 : 1.0;
-                
-                if (input.keys['ArrowUp'] || input.keys['w']) {
-                    pufferfish.vy = -speed * speedMultiplier;
-                } else if (input.keys['ArrowDown'] || input.keys['s']) {
-                    pufferfish.vy = speed * speedMultiplier;
-                } else {
-                    pufferfish.vy = 0;
-                }
-                
-                if (input.keys['ArrowLeft'] || input.keys['a']) {
-                    pufferfish.vx = -speed * speedMultiplier;
-                } else if (input.keys['ArrowRight'] || input.keys['d']) {
-                    pufferfish.vx = speed * speedMultiplier;
-                } else {
-                    pufferfish.vx = 0;
-                }
+            // 膨胀逻辑
+            if (input.space) {
+                pufferfish.inflateTime = Math.min(
+                    pufferfish.inflateTime + dt,
+                    pufferfish.maxInflateTime
+                );
+                // 充气时旋转
+                pufferfish.rotation += pufferfish.rotationSpeed * dt;
             } else {
-                // 弹射中：只有水的阻力（无重力）
-                pufferfish.vx *= pufferfish.friction;
-                pufferfish.vy *= pufferfish.friction;
+                pufferfish.inflateTime = Math.max(
+                    pufferfish.inflateTime - dt * pufferfish.deflateSpeed,
+                    0
+                );
+            }
+            
+            pufferfish.scale = 1.0 + (pufferfish.inflateTime / pufferfish.maxInflateTime) * 0.5;
+            
+            // 松手弹射：向尾巴方向
+            if (spaceReleased && pufferfish.inflateTime > 0.2) {
+                const launchPower = pufferfish.inflateTime / pufferfish.maxInflateTime;
                 
-                // 速度太慢时停止
-                const speed = Math.sqrt(pufferfish.vx * pufferfish.vx + pufferfish.vy * pufferfish.vy);
-                if (speed < 5) {
-                    pufferfish.vx = 0;
-                    pufferfish.vy = 0;
-                    pufferfish.isLaunched = false;
-                }
+                // 头的方向 = rotation，尾巴方向 = rotation + π
+                const tailDirection = pufferfish.rotation + Math.PI;
+                pufferfish.vx = Math.cos(tailDirection) * pufferfish.launchVelocity * launchPower;
+                pufferfish.vy = Math.sin(tailDirection) * pufferfish.launchVelocity * launchPower;
+                
+                pufferfish.inflateTime = 0;
+                onLaunch();
+            }
+            
+            // 水的阻力（始终应用）
+            pufferfish.vx *= pufferfish.friction;
+            pufferfish.vy *= pufferfish.friction;
+            
+            // 速度太慢时归零
+            const currentSpeed = Math.sqrt(pufferfish.vx * pufferfish.vx + pufferfish.vy * pufferfish.vy);
+            if (currentSpeed < 5) {
+                pufferfish.vx = 0;
+                pufferfish.vy = 0;
             }
             
             pufferfish.x += pufferfish.vx * dt;
