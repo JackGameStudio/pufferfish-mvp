@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>弹弹河豚 MVP</title>
     <style>
         * {
@@ -17,11 +17,13 @@
             min-height: 100vh;
             background: #1a1a1a;
             font-family: Arial, sans-serif;
+            touch-action: none;
         }
         canvas {
             border: 2px solid #fff;
             background: #000;
             display: block;
+            cursor: pointer;
         }
         #info {
             position: absolute;
@@ -32,6 +34,7 @@
             background: rgba(0,0,0,0.7);
             padding: 10px;
             border-radius: 5px;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -40,8 +43,9 @@
     <div id="info">
         <p style="font-size: 16px; font-weight: bold; color: #0af;">🐡 弹弹河豚 MVP</p>
         <p>FPS: <span id="fps">0</span></p>
-        <p style="color: #0ff;">按住空格：膨胀+旋转</p>
-        <p style="color: #0ff;">松开空格：向尾巴弹射</p>
+        <p style="color: #ff6;">HP: <span id="hp">100</span></p>
+        <p style="color: #0ff;">点击河豚：膨胀+旋转</p>
+        <p style="color: #0ff;">松开：向尾巴弹射</p>
         <p style="color: #ff0;">目标：到达蓝色终点</p>
     </div>
     <script>
@@ -49,7 +53,6 @@
         const ctx = canvas.getContext('2d');
 
         const game = {
-            running: true,
             deltaTime: 0,
             lastTime: Date.now(),
             fps: 0,
@@ -70,83 +73,107 @@
         };
 
         const gameState = {
-            started: false,
             finished: false,
-            hitObstacle: false,
-            hitTime: 0
+            gameOver: false
         };
 
         const pufferfish = {
-            x: canvas.width / 2,
-            y: canvas.height / 2,
+            x: 400,
+            y: 550,
             radius: 20,
             vx: 0,
             vy: 0,
             scale: 1.0,
             inflateTime: 0,
-            maxInflateTime: 1.0,        // 缩短到 1 秒
-            deflateSpeed: 3.0,          // 加快缩小速度
-            launchVelocity: 700,        // 调整弹射速度
-            friction: 0.985,            // 调整水的阻力
+            maxInflateTime: 1.0,
+            deflateSpeed: 3.0,
+            launchVelocity: 900,        // 提升弹射速度
+            friction: 0.992,            // 调整阻力
             rotation: -Math.PI / 2,
-            rotationSpeed: 4            // 加快旋转速度
+            rotationSpeed: 6,           // 加快旋转速度
+            hp: 100,                    // 生命值
+            maxHp: 100,
+            invincibleTime: 0           // 无敌时间
         };
 
         const input = {
-            keys: {},
-            touchX: null,
-            touchY: null,
-            touching: false,
-            space: false,
-            spacePressed: false,
-            spacePressedLastFrame: false
+            mouseDown: false,
+            mouseX: 0,
+            mouseY: 0,
+            clickingFish: false,
+            clickReleased: false,
+            clickPressedLastFrame: false
         };
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ') {
-                input.space = true;
-                input.spacePressed = true;
-                if (gameState.finished || gameState.hitObstacle) {
-                    initLevel();
-                }
-                e.preventDefault();
-            }
-            input.keys[e.key] = true;
-        });
-
-        document.addEventListener('keyup', (e) => {
-            if (e.key === ' ') {
-                input.space = false;
-                e.preventDefault();
-            }
-            input.keys[e.key] = false;
-        });
-
-        canvas.addEventListener('touchstart', (e) => {
-            const touch = e.touches[0];
+        // 鼠标事件
+        canvas.addEventListener('mousedown', (e) => {
             const rect = canvas.getBoundingClientRect();
-            input.touchX = touch.clientX - rect.left;
-            input.touchY = touch.clientY - rect.top;
-            input.touching = true;
-            input.space = true;
+            input.mouseX = e.clientX - rect.left;
+            input.mouseY = e.clientY - rect.top;
+            input.mouseDown = true;
+            
+            // 检查是否点击在鱼身上
+            const dx = input.mouseX - pufferfish.x;
+            const dy = input.mouseY - pufferfish.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const fishRadius = pufferfish.radius * pufferfish.scale * 1.5;
+            
+            if (dist < fishRadius) {
+                input.clickingFish = true;
+            }
+            
+            // 过关或死亡后重新开始
+            if (gameState.finished || gameState.gameOver) {
+                initLevel();
+            }
         });
 
-        canvas.addEventListener('touchmove', (e) => {
-            const touch = e.touches[0];
-            const rect = canvas.getBoundingClientRect();
-            input.touchX = touch.clientX - rect.left;
-            input.touchY = touch.clientY - rect.top;
-        });
-
-        canvas.addEventListener('touchend', (e) => {
-            input.touching = false;
-            input.space = false;
+        canvas.addEventListener('mouseup', (e) => {
+            input.mouseDown = false;
+            input.clickingFish = false;
         });
 
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            input.touchX = e.clientX - rect.left;
-            input.touchY = e.clientY - rect.top;
+            input.mouseX = e.clientX - rect.left;
+            input.mouseY = e.clientY - rect.top;
+        });
+
+        // 触摸事件
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            input.mouseX = touch.clientX - rect.left;
+            input.mouseY = touch.clientY - rect.top;
+            input.mouseDown = true;
+            
+            const dx = input.mouseX - pufferfish.x;
+            const dy = input.mouseY - pufferfish.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const fishRadius = pufferfish.radius * pufferfish.scale * 1.5;
+            
+            if (dist < fishRadius) {
+                input.clickingFish = true;
+            }
+            
+            if (gameState.finished || gameState.gameOver) {
+                initLevel();
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            input.mouseX = touch.clientX - rect.left;
+            input.mouseY = touch.clientY - rect.top;
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            input.mouseDown = false;
+            input.clickingFish = false;
         });
 
         function initLevel() {
@@ -155,14 +182,13 @@
             pufferfish.vx = 0;
             pufferfish.vy = 0;
             pufferfish.scale = 1.0;
-            pufferfish.isLaunched = false;
             pufferfish.inflateTime = 0;
             pufferfish.rotation = -Math.PI / 2;
+            pufferfish.hp = pufferfish.maxHp;
+            pufferfish.invincibleTime = 0;
             
-            gameState.started = false;
             gameState.finished = false;
-            gameState.hitObstacle = false;
-            gameState.hitTime = 0;
+            gameState.gameOver = false;
         }
 
         function checkCollisions() {
@@ -172,11 +198,38 @@
                 const dx = pufferfish.x - obstacle.x;
                 const dy = pufferfish.y - obstacle.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
+                const minDist = puffRadius + obstacle.radius;
                 
-                if (dist < puffRadius + obstacle.radius) {
-                    gameState.hitObstacle = true;
-                    gameState.hitTime = 0.5;
+                if (dist < minDist && pufferfish.invincibleTime <= 0) {
+                    // 计算伤害（基于膨胀大小）
+                    const damage = 10 + (pufferfish.scale - 1.0) * 40; // 膨胀越大伤害越高
+                    pufferfish.hp -= damage;
+                    
+                    // 设置无敌时间
+                    pufferfish.invincibleTime = 0.5;
+                    
+                    // 物理反弹
+                    const overlap = minDist - dist;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    
+                    // 推开
+                    pufferfish.x += nx * overlap;
+                    pufferfish.y += ny * overlap;
+                    
+                    // 反弹速度
+                    const speed = Math.sqrt(pufferfish.vx * pufferfish.vx + pufferfish.vy * pufferfish.vy);
+                    pufferfish.vx = nx * speed * 0.8;
+                    pufferfish.vy = ny * speed * 0.8;
+                    
                     onHit();
+                    
+                    // 检查死亡
+                    if (pufferfish.hp <= 0) {
+                        pufferfish.hp = 0;
+                        gameState.gameOver = true;
+                    }
+                    
                     return;
                 }
             }
@@ -215,7 +268,7 @@
         }
 
         function onHit() {
-            playSound(200, 0.2);
+            playSound(150, 0.3, 'square');
         }
 
         function onFinish() {
@@ -235,16 +288,9 @@
             
             update(game.deltaTime);
             
-            // 碰撞检测（任何移动都可能碰撞）
-            checkCollisions();
-            checkEndZone();
-            
-            if (gameState.hitObstacle) {
-                gameState.hitTime -= game.deltaTime;
-                if (gameState.hitTime <= 0) {
-                    gameState.hitObstacle = false;
-                    initLevel();
-                }
+            if (!gameState.finished && !gameState.gameOver) {
+                checkCollisions();
+                checkEndZone();
             }
             
             render();
@@ -252,18 +298,21 @@
         }
 
         function update(dt) {
-            const speed = 200;
+            // 更新无敌时间
+            if (pufferfish.invincibleTime > 0) {
+                pufferfish.invincibleTime -= dt;
+            }
             
-            const spaceReleased = input.spacePressedLastFrame && !input.space;
-            input.spacePressedLastFrame = input.space;
+            // 检测点击释放
+            const clickReleased = input.clickPressedLastFrame && !input.clickingFish;
+            input.clickPressedLastFrame = input.clickingFish;
             
             // 膨胀逻辑
-            if (input.space) {
+            if (input.clickingFish) {
                 pufferfish.inflateTime = Math.min(
                     pufferfish.inflateTime + dt,
                     pufferfish.maxInflateTime
                 );
-                // 充气时旋转
                 pufferfish.rotation += pufferfish.rotationSpeed * dt;
             } else {
                 pufferfish.inflateTime = Math.max(
@@ -274,20 +323,17 @@
             
             pufferfish.scale = 1.0 + (pufferfish.inflateTime / pufferfish.maxInflateTime) * 0.5;
             
-            // 松手弹射：向尾巴方向
-            if (spaceReleased && pufferfish.inflateTime > 0.2) {
+            // 松手弹射
+            if (clickReleased && pufferfish.inflateTime > 0.2) {
                 const launchPower = pufferfish.inflateTime / pufferfish.maxInflateTime;
-                
-                // 头的方向 = rotation，尾巴方向 = rotation + π
                 const tailDirection = pufferfish.rotation + Math.PI;
                 pufferfish.vx = Math.cos(tailDirection) * pufferfish.launchVelocity * launchPower;
                 pufferfish.vy = Math.sin(tailDirection) * pufferfish.launchVelocity * launchPower;
-                
                 pufferfish.inflateTime = 0;
                 onLaunch();
             }
             
-            // 水的阻力（始终应用）
+            // 水的阻力
             pufferfish.vx *= pufferfish.friction;
             pufferfish.vy *= pufferfish.friction;
             
@@ -301,6 +347,7 @@
             pufferfish.x += pufferfish.vx * dt;
             pufferfish.y += pufferfish.vy * dt;
             
+            // 边界碰撞
             const margin = pufferfish.radius * pufferfish.scale;
             
             if (pufferfish.x - margin < 0) {
@@ -318,10 +365,13 @@
                 pufferfish.y = canvas.height - margin;
                 pufferfish.vy = -Math.abs(pufferfish.vy) * 0.8;
             }
+            
+            // 更新 HP 显示
+            document.getElementById('hp').textContent = Math.round(pufferfish.hp);
         }
 
         function render() {
-            ctx.fillStyle = '#001030';  // 深蓝色背景（水下感）
+            ctx.fillStyle = '#001030';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             // 绘制起点
@@ -329,12 +379,18 @@
             ctx.beginPath();
             ctx.arc(level.startX, level.startY, 15, 0, Math.PI * 2);
             ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('START', level.startX, level.startY + 25);
             
             // 绘制终点
             ctx.fillStyle = '#0088ff';
             ctx.beginPath();
             ctx.arc(level.endX, level.endY, level.endRadius, 0, Math.PI * 2);
             ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.fillText('END', level.endX, level.endY + level.endRadius + 15);
             
             // 绘制障碍物
             ctx.fillStyle = '#ff0000';
@@ -344,18 +400,27 @@
                 ctx.fill();
             }
             
-            // 绘制河豚（有头和尾巴）
+            // 绘制河豚
             ctx.save();
             ctx.translate(pufferfish.x, pufferfish.y);
             ctx.rotate(pufferfish.rotation);
             
             const radius = pufferfish.radius * pufferfish.scale;
             
-            // 碰撞时闪烁
-            if (gameState.hitObstacle && Math.floor(gameState.hitTime * 10) % 2 === 0) {
-                ctx.fillStyle = '#ff0000';
+            // 无敌时闪烁
+            if (pufferfish.invincibleTime > 0 && Math.floor(pufferfish.invincibleTime * 10) % 2 === 0) {
+                ctx.globalAlpha = 0.5;
+            }
+            
+            // 根据颜色判断状态
+            if (pufferfish.hp <= 0) {
+                ctx.fillStyle = '#888';
+            } else if (input.clickingFish && pufferfish.inflateTime > 0) {
+                ctx.fillStyle = '#ffff00';
+            } else if (Math.abs(pufferfish.vx) > 10 || Math.abs(pufferfish.vy) > 10) {
+                ctx.fillStyle = '#ff6600';
             } else {
-                ctx.fillStyle = pufferfish.isLaunched ? '#ff6600' : (pufferfish.inflateTime > 0 ? '#ffff00' : '#00ff00');
+                ctx.fillStyle = '#00ff00';
             }
             
             // 绘制身体（椭圆）
@@ -363,7 +428,7 @@
             ctx.ellipse(0, 0, radius * 1.3, radius, 0, 0, Math.PI * 2);
             ctx.fill();
             
-            // 绘制尾巴（三角形，在后面）
+            // 绘制尾巴
             ctx.beginPath();
             ctx.moveTo(-radius * 0.8, 0);
             ctx.lineTo(-radius * 1.8, -radius * 0.5);
@@ -381,7 +446,7 @@
             ctx.arc(radius * 0.7, -radius * 0.3, radius * 0.12, 0, Math.PI * 2);
             ctx.fill();
             
-            // 绘制方向指示器（指针）
+            // 绘制方向指示器
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 3;
             ctx.beginPath();
@@ -398,13 +463,22 @@
             ctx.restore();
             
             // 绘制膨胀进度条
-            if (!pufferfish.isLaunched && pufferfish.inflateTime > 0) {
+            if (input.clickingFish && pufferfish.inflateTime > 0) {
                 ctx.fillStyle = '#fff';
-                ctx.fillRect(pufferfish.x - 50, pufferfish.y + radius * 2, 100, 10);
+                ctx.fillRect(pufferfish.x - 50, pufferfish.y + radius * 2.5, 100, 10);
                 ctx.fillStyle = '#ffff00';
                 const progress = pufferfish.inflateTime / pufferfish.maxInflateTime;
-                ctx.fillRect(pufferfish.x - 50, pufferfish.y + radius * 2, 100 * progress, 10);
+                ctx.fillRect(pufferfish.x - 50, pufferfish.y + radius * 2.5, 100 * progress, 10);
             }
+            
+            // 绘制 HP 条
+            ctx.fillStyle = '#333';
+            ctx.fillRect(pufferfish.x - 40, pufferfish.y - radius * 2.5 - 15, 80, 8);
+            ctx.fillStyle = pufferfish.hp > 30 ? '#00ff00' : '#ff0000';
+            ctx.fillRect(pufferfish.x - 40, pufferfish.y - radius * 2.5 - 15, 80 * (pufferfish.hp / pufferfish.maxHp), 8);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(pufferfish.x - 40, pufferfish.y - radius * 2.5 - 15, 80, 8);
             
             // 绘制状态文本
             ctx.fillStyle = '#fff';
@@ -416,10 +490,13 @@
                 ctx.fillText('🎉 过关！', canvas.width / 2, canvas.height / 2);
                 ctx.font = '16px Arial';
                 ctx.fillStyle = '#fff';
-                ctx.fillText('按空格重新开始', canvas.width / 2, canvas.height / 2 + 40);
-            } else if (gameState.hitObstacle) {
+                ctx.fillText('点击重新开始', canvas.width / 2, canvas.height / 2 + 40);
+            } else if (gameState.gameOver) {
                 ctx.fillStyle = '#ff0000';
-                ctx.fillText('💥 撞到障碍物！', canvas.width / 2, canvas.height / 2);
+                ctx.fillText('💀 游戏结束', canvas.width / 2, canvas.height / 2);
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#fff';
+                ctx.fillText('点击重新开始', canvas.width / 2, canvas.height / 2 + 40);
             }
             
             // 绘制边界
