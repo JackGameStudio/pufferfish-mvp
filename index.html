@@ -292,7 +292,7 @@
             
             if (fish.hp <= 0) ctx.fillStyle = '#888';
             else if (input.clicking && fish.inflate > 0) ctx.fillStyle = '#ff0';
-            else if (speed > 10) ctx.fillStyle = '#f60';
+            else if (Math.sqrt(fish.vx*fish.vx + fish.vy*fish.vy) > 10) ctx.fillStyle = '#f60';
             else ctx.fillStyle = '#0f0';
             
             // 身体
