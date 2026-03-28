@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>弹弹河豚 MVP</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -99,8 +99,7 @@
             input.mouseX = e.clientX - rect.left;
             input.mouseY = e.clientY - rect.top;
             input.mouseDown = true;
-            const dx = input.mouseX - fish.x, dy = input.mouseY - fish.y;
-            if (Math.sqrt(dx*dx + dy*dy) < fish.radius * fish.scale * 1.5) input.clicking = true;
+            input.clicking = true;
             if (state.finished || state.gameOver) init();
         });
         canvas.addEventListener('mouseup', () => { input.mouseDown = false; input.clicking = false; });
@@ -115,8 +114,7 @@
             input.mouseX = t.clientX - rect.left;
             input.mouseY = t.clientY - rect.top;
             input.mouseDown = true;
-            const dx = input.mouseX - fish.x, dy = input.mouseY - fish.y;
-            if (Math.sqrt(dx*dx + dy*dy) < fish.radius * fish.scale * 1.5) input.clicking = true;
+            input.clicking = true;
             if (state.finished || state.gameOver) init();
         });
         canvas.addEventListener('touchmove', e => {
