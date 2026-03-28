@@ -6,35 +6,33 @@
     <title>弹弹河豚 MVP</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+        html, body {
+            width: 100%; height: 100%;
+            overflow: hidden;
             background: #1a1a1a;
             font-family: Arial, sans-serif;
             touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         canvas {
-            border: 2px solid #fff;
-            background: #000;
             display: block;
-            cursor: pointer;
+            /* no width/height here - set by JS */
         }
         #info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
+            position: fixed;
+            top: 10px; left: 10px;
             color: #fff;
             font-size: 12px;
             background: rgba(0,0,0,0.8);
             padding: 10px;
             border-radius: 5px;
             pointer-events: none;
+            z-index: 10;
         }
         #hp-bar {
-            width: 120px;
-            height: 12px;
+            width: 120px; height: 12px;
             background: #333;
             border: 2px solid #fff;
             border-radius: 6px;
@@ -42,15 +40,14 @@
             margin-top: 5px;
         }
         #hp-fill {
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             background: #0f0;
             transition: width 0.2s;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <canvas id="gameCanvas"></canvas>
     <div id="info">
         <p style="font-size: 16px; font-weight: bold; color: #0af;">🐡 弹弹河豚 MVP</p>
         <p>FPS: <span id="fps">0</span></p>
@@ -60,13 +57,32 @@
         <p style="color: #0ff;">松开弹射</p>
     </div>
     <script>
+        // === 移动端 canvas 自适应 ===
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            canvas.width = Math.round(w * dpr);
+            canvas.height = Math.round(h * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // 一劳永逸，DPR 缩放全交给 ctx
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // 以后用 canvas.width/height 时候要注意：返回的是物理像素
+        // 但 ctx 已经 setTransform 了，draw 时直接用 CSS 像素逻辑即可
+        const GAME_W = 800, GAME_H = 600; // 游戏逻辑空间（等于 CSS 尺寸）
 
         let lastTime = Date.now();
         let fps = 0, frameCount = 0;
 
-        const LEVEL_W = 1200, LEVEL_H = 900; // 关卡实际大小
+        const LEVEL_W = 1200, LEVEL_H = 900; // 关卡实际大小（逻辑像素）
 
         const level = {
             startX: 200, startY: 750,
@@ -278,11 +294,11 @@
 
         function render() {
             // 镜头偏移：鱼居中
-            const ox = canvas.width / 2 - camera.x;
-            const oy = canvas.height / 2 - camera.y;
+            const ox = GAME_W / 2 - camera.x;
+            const oy = GAME_H / 2 - camera.y;
 
             ctx.fillStyle = '#001030';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, GAME_W, GAME_H);
 
             ctx.save();
             ctx.translate(ox, oy);
@@ -349,8 +365,8 @@
             ctx.restore(); // 退出世界坐标
 
             if (input.clicking && fish.inflate > 0) {
-                const sx = canvas.width / 2 + (fish.x - camera.x);
-                const sy = canvas.height / 2 + (fish.y - camera.y);
+                const sx = GAME_W / 2 + (fish.x - camera.x);
+                const sy = GAME_H / 2 + (fish.y - camera.y);
                 const rVis = fish.radius * fish.scale;
                 ctx.fillStyle = 'rgba(255,255,255,0.8)';
                 ctx.fillRect(sx - 50, sy + rVis * 2.5, 100, 8);
@@ -359,9 +375,8 @@
             }
 
             // 小地图
-            const isMobile = 'ontouchstart' in window;
-            const mmX = isMobile ? MINIMAP_PAD : canvas.width - MINIMAP_W - MINIMAP_MARGIN;
-            const mmY = isMobile ? MINIMAP_PAD : canvas.height - MINIMAP_H - MINIMAP_MARGIN;
+            const mmX = isMobile ? MINIMAP_PAD : GAME_W - MINIMAP_W - MINIMAP_MARGIN;
+            const mmY = isMobile ? MINIMAP_PAD : GAME_H - MINIMAP_H - MINIMAP_MARGIN;
             const sx = LEVEL_W / MINIMAP_W, sy = LEVEL_H / MINIMAP_H;
 
             ctx.fillStyle = 'rgba(0,20,50,0.85)';
@@ -394,9 +409,9 @@
             ctx.stroke();
 
             // 视野框
-            const vpX = mmX + (canvas.width / 2 - camera.x) / sx;
-            const vpY = mmY + (canvas.height / 2 - camera.y) / sy;
-            const vpW = canvas.width / sx, vpH = canvas.height / sy;
+            const vpX = mmX + (GAME_W / 2 - camera.x) / sx;
+            const vpY = mmY + (GAME_H / 2 - camera.y) / sy;
+            const vpW = GAME_W / sx, vpH = GAME_H / sy;
             ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 0.5;
             ctx.strokeRect(vpX - vpW/2, vpY - vpH/2, vpW, vpH);
 
@@ -404,18 +419,18 @@
             ctx.fillStyle = '#fff'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center';
             if (state.finished) {
                 ctx.fillStyle = '#0f0';
-                ctx.fillText('🎉 过关！', canvas.width/2, canvas.height/2);
+                ctx.fillText('🎉 过关！', GAME_W/2, GAME_H/2);
                 ctx.font = '16px Arial'; ctx.fillStyle = '#fff';
-                ctx.fillText('点击重新开始', canvas.width/2, canvas.height/2 + 40);
+                ctx.fillText('点击重新开始', GAME_W/2, GAME_H/2 + 40);
             } else if (state.gameOver) {
                 ctx.fillStyle = '#f00';
-                ctx.fillText('💀 游戏结束', canvas.width/2, canvas.height/2);
+                ctx.fillText('💀 游戏结束', GAME_W/2, GAME_H/2);
                 ctx.font = '16px Arial'; ctx.fillStyle = '#fff';
-                ctx.fillText('点击重新开始', canvas.width/2, canvas.height/2 + 40);
+                ctx.fillText('点击重新开始', GAME_W/2, GAME_H/2 + 40);
             }
 
             ctx.strokeStyle = '#0af'; ctx.lineWidth = 4;
-            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeRect(0, 0, GAME_W, GAME_H);
         }
 
         function loop() {
