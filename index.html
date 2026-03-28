@@ -9,16 +9,28 @@
         html, body {
             width: 100%; height: 100%;
             overflow: hidden;
-            background: #1a1a1a;
+            background: #000;
             font-family: Arial, sans-serif;
             touch-action: none;
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #wrapper {
+            position: relative;
+            /* 4:3 aspect ratio, centered */
+            aspect-ratio: 4 / 3;
+            max-width: 100%;
+            max-height: 100%;
         }
         canvas {
             display: block;
-            /* no width/height here - set by JS */
+            width: 100%;
+            height: 100%;
+            border: 2px solid #fff;
         }
         #info {
             position: fixed;
@@ -47,7 +59,9 @@
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
+    <div id="wrapper">
+        <canvas id="gameCanvas"></canvas>
+    </div>
     <div id="info">
         <p style="font-size: 16px; font-weight: bold; color: #0af;">🐡 弹弹河豚 MVP</p>
         <p>FPS: <span id="fps">0</span></p>
@@ -57,27 +71,28 @@
         <p style="color: #0ff;">松开弹射</p>
     </div>
     <script>
-        // === 移动端 canvas 自适应 ===
+        // === canvas 自适应 ===
         const canvas = document.getElementById('gameCanvas');
+        const wrapper = document.getElementById('wrapper');
         const ctx = canvas.getContext('2d');
         const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
+        // 固定 4:3 逻辑分辨率，canvas 尺寸跟随 wrapper 的 CSS 尺寸
+        const GAME_W = 800, GAME_H = 600;
+
         function resizeCanvas() {
             const dpr = window.devicePixelRatio || 1;
-            const w = window.innerWidth;
-            const h = window.innerHeight;
+            // wrapper 由 aspect-ratio: 4/3 决定大小，这里取实际渲染尺寸
+            const w = wrapper.clientWidth;
+            const h = wrapper.clientHeight;
             canvas.style.width = w + 'px';
             canvas.style.height = h + 'px';
             canvas.width = Math.round(w * dpr);
             canvas.height = Math.round(h * dpr);
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // 一劳永逸，DPR 缩放全交给 ctx
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
-
-        // 以后用 canvas.width/height 时候要注意：返回的是物理像素
-        // 但 ctx 已经 setTransform 了，draw 时直接用 CSS 像素逻辑即可
-        const GAME_W = 800, GAME_H = 600; // 游戏逻辑空间（等于 CSS 尺寸）
 
         let lastTime = Date.now();
         let fps = 0, frameCount = 0;
