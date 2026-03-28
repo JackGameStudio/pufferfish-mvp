@@ -8,8 +8,8 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body {
             width: 100%; height: 100%;
-            overflow: hidden;
-            background: #000;
+            overflow: auto;
+            background: #1a1a1a;
             font-family: Arial, sans-serif;
             touch-action: none;
             -webkit-touch-callout: none;
@@ -19,18 +19,14 @@
             justify-content: center;
             align-items: center;
         }
-        #wrapper {
-            position: relative;
-            /* 4:3 aspect ratio, centered */
-            aspect-ratio: 4 / 3;
-            max-width: 100%;
-            max-height: 100%;
-        }
         canvas {
             display: block;
-            width: 100%;
-            height: 100%;
+            /* 固定 800x600，完美适配 4:3 关卡 */
+            width: 800px;
+            height: 600px;
             border: 2px solid #fff;
+            max-width: 100vw;
+            max-height: 100vh;
         }
         #info {
             position: fixed;
@@ -59,9 +55,7 @@
     </style>
 </head>
 <body>
-    <div id="wrapper">
-        <canvas id="gameCanvas"></canvas>
-    </div>
+    <canvas id="gameCanvas"></canvas>
     <div id="info">
         <p style="font-size: 16px; font-weight: bold; color: #0af;">🐡 弹弹河豚 MVP</p>
         <p>FPS: <span id="fps">0</span></p>
@@ -73,20 +67,17 @@
     <script>
         // === canvas 自适应 ===
         const canvas = document.getElementById('gameCanvas');
-        const wrapper = document.getElementById('wrapper');
         const ctx = canvas.getContext('2d');
         const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
-        // 固定 4:3 逻辑分辨率，canvas 尺寸跟随 wrapper 的 CSS 尺寸
+        // 固定 4:3 逻辑分辨率，canvas 尺寸跟随 CSS
         const GAME_W = 800, GAME_H = 600;
 
         function resizeCanvas() {
             const dpr = window.devicePixelRatio || 1;
-            // wrapper 由 aspect-ratio: 4/3 决定大小，这里取实际渲染尺寸
-            const w = wrapper.clientWidth;
-            const h = wrapper.clientHeight;
-            canvas.style.width = w + 'px';
-            canvas.style.height = h + 'px';
+            // CSS 固定 800x600，取实际渲染尺寸
+            const w = canvas.clientWidth || GAME_W;
+            const h = canvas.clientHeight || GAME_H;
             canvas.width = Math.round(w * dpr);
             canvas.height = Math.round(h * dpr);
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
