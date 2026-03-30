@@ -280,7 +280,14 @@
             if (fish.launchScale > 1.01 && fish.launchTime < 2.0) {
                 fish.launchTime += dt;
                 const progress = Math.min(fish.launchTime / 2.0, 1.0);
-                fish.scale = fish.launchScale * (1 - progress) + 1.0 * progress;
+                // 只在没有按压时才用渐进缩小，按压时让位给膨胀逻辑
+                if (!input.clicking) {
+                    fish.scale = fish.launchScale * (1 - progress) + 1.0 * progress;
+                } else {
+                    // 玩家在按压，清理 launchScale 避免干扰
+                    fish.launchScale = 1.0;
+                    fish.launchTime = 2.0;  // 跳过渐进缩小
+                }
             }
             
             // 波浪抖动
