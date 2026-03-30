@@ -191,10 +191,13 @@
 
         function checkCollision() {
             const r = fish.radius * fish.scale;
+            // 膨胀到 95% 以上时无敌，不会掉血
+            const isInflatingMax = fish.scale >= 1.8 * 0.95;  // 95% of max scale (1.8)
+            
             for (let o of level.obstacles) {
                 const dx = fish.x - o.x, dy = fish.y - o.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < r + o.radius && fish.invincible <= 0) {
+                if (dist < r + o.radius && fish.invincible <= 0 && !isInflatingMax) {
                     const dmg = 10 + (fish.scale - 1) * 40;
                     fish.hp -= dmg;
                     fish.invincible = 0.5;
