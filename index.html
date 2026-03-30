@@ -197,17 +197,22 @@
             for (let o of level.obstacles) {
                 const dx = fish.x - o.x, dy = fish.y - o.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < r + o.radius && fish.invincible <= 0 && !isInflatingMax) {
-                    const dmg = 10 + (fish.scale - 1) * 40;
-                    fish.hp -= dmg;
-                    fish.invincible = 0.5;
+                if (dist < r + o.radius) {
+                    // 物理碰撞：推开
                     const overlap = r + o.radius - dist;
                     const nx = dx/dist, ny = dy/dist;
                     fish.x += nx * overlap; fish.y += ny * overlap;
                     const speed = Math.sqrt(fish.vx*fish.vx + fish.vy*fish.vy);
                     fish.vx = nx * speed * 0.8; fish.vy = ny * speed * 0.8;
-                    playSound(150, 0.3, 'square');
-                    if (fish.hp <= 0) { fish.hp = 0; state.gameOver = true; }
+                    
+                    // 掉血判定：非无敌状态 + 非满膨胀
+                    if (fish.invincible <= 0 && !isInflatingMax) {
+                        const dmg = 10 + (fish.scale - 1) * 40;
+                        fish.hp -= dmg;
+                        fish.invincible = 0.5;
+                        playSound(150, 0.3, 'square');
+                        if (fish.hp <= 0) { fish.hp = 0; state.gameOver = true; }
+                    }
                     return;
                 }
             }
