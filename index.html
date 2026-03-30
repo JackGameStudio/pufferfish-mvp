@@ -220,10 +220,11 @@
             } else {
                 fish.inflate = Math.max(fish.inflate - dt * 3, 0);
             }
-            
-            // 缩放：膨胀快，缩小慢（2秒）
+
+            // 缩放：按下时快速响应，松开时缓慢缩小
             const targetScale = 1 + (fish.inflate / fish.maxInflate) * 0.8;
-            const lerp = fish.inflate > 0 ? 0.1 : 0.025;  // 膨胀快，缩小慢
+            // 关键修复：按下时用更快的 lerp，松开时用慢的 lerp
+            const lerp = input.clicking ? 0.15 : (fish.inflate > 0 ? 0.08 : 0.025);
             fish.scale = fish.scale * (1-lerp) + targetScale * lerp;
             
             // 弹射
