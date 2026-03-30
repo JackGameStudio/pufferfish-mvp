@@ -239,16 +239,16 @@
 
             // 膨胀逻辑简化：scale 直接跟按压挂钩
             const maxScale = 1.8;  // 最大膨胀倍数
-            const inflateSpeed = 1.2;  // 膨胀速度（秒）
-            const deflateSpeed = 0.6;  // 收缩速度（秒，比膨胀快一点）
+            const inflateRate = (maxScale - 1) / 1.0;  // 1秒内从1膨胀到max
+            const deflateRate = (maxScale - 1) / 0.5;  // 0.5秒内从max缩回1
 
             if (input.clicking) {
                 // 按住：膨胀，同时旋转
-                fish.scale = Math.min(fish.scale + dt / inflateSpeed * (maxScale - 1) + 0.5 * dt, maxScale);
+                fish.scale = Math.min(fish.scale + inflateRate * dt, maxScale);
                 fish.rotation += fish.rotSpeed * dt;
             } else {
                 // 松开：收缩
-                fish.scale = Math.max(fish.scale - dt / deflateSpeed * (maxScale - 1), 1.0);
+                fish.scale = Math.max(fish.scale - deflateRate * dt, 1.0);
             }
 
             // inflate 值用于弹射力度计算（基于 scale）
