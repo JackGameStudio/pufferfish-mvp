@@ -233,24 +233,27 @@
 
         function update(dt) {
             if (fish.invincible > 0) fish.invincible -= dt;
-            
+
             const released = input.lastClick && !input.clicking;
             input.lastClick = input.clicking;
-            
-            // 膨胀
+
+            // 膨胀逻辑简化：scale 直接跟按压挂钩
+            const maxScale = 1.8;  // 最大膨胀倍数
+            const inflateSpeed = 1.2;  // 膨胀速度（秒）
+            const deflateSpeed = 0.6;  // 收缩速度（秒，比膨胀快一点）
+
             if (input.clicking) {
-                fish.inflate = Math.min(fish.inflate + dt, fish.maxInflate);
+                // 按住：膨胀，同时旋转
+                fish.scale = Math.min(fish.scale + dt / inflateSpeed * (maxScale - 1) + 0.5 * dt, maxScale);
                 fish.rotation += fish.rotSpeed * dt;
             } else {
-                fish.inflate = Math.max(fish.inflate - dt * 3, 0);
+                // 松开：收缩
+                fish.scale = Math.max(fish.scale - dt / deflateSpeed * (maxScale - 1), 1.0);
             }
 
-            // 缩放：按下时快速响应，松开时缓慢缩小
-            const targetScale = 1 + (fish.inflate / fish.maxInflate) * 0.8;
-            // 关键修复：按下时用更快的 lerp，松开时用慢的 lerp
-            const lerp = input.clicking ? 0.15 : (fish.inflate > 0 ? 0.08 : 0.025);
-            fish.scale = fish.scale * (1-lerp) + targetScale * lerp;
-            
+            // inflate 值用于弹射力度计算（基于 scale）
+            fish.inflate = (fish.scale - 1) / (maxScale - 1) * fish.maxInflate;
+
             // 弹射
             if (released && fish.inflate > 0.2) {
                 const power = fish.inflate / fish.maxInflate;
@@ -261,6 +264,7 @@
                 fish.launchTime = 0;
                 fish.waveAmp = power * 25;
                 fish.inflate = 0;
+                fish.scale = 1.0;  // 弹射后立即收缩
                 playSound(400, 0.1);
             }
             
@@ -389,16 +393,6 @@
 
             // 膨胀进度条（屏幕空间，避免位置乱跳）
             ctx.restore(); // 退出世界坐标
-
-            if (input.clicking && fish.inflate > 0) {
-                const sx = GAME_W / 2 + (fish.x - camera.x);
-                const sy = GAME_H / 2 + (fish.y - camera.y);
-                const rVis = fish.radius * fish.scale;
-                ctx.fillStyle = 'rgba(255,255,255,0.8)';
-                ctx.fillRect(sx - 50, sy + rVis * 2.5, 100, 8);
-                ctx.fillStyle = '#ff0';
-                ctx.fillRect(sx - 50, sy + rVis * 2.5, 100 * (fish.inflate / fish.maxInflate), 8);
-            }
 
             // 小地图
             const mmX = isMobile ? MINIMAP_PAD : GAME_W - MINIMAP_W - MINIMAP_MARGIN;
