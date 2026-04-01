@@ -83,40 +83,52 @@
         let lastTime = Date.now();
         let fps = 0, frameCount = 0;
 
-        const LEVEL_W = 1200, LEVEL_H = 900; // 关卡实际大小（逻辑像素）
+        const LEVEL_W = 2000, LEVEL_H = 1500; // 扩大后的世界尺寸
 
         // 关卡：星河漂流
         const level = {
-            startX: 200, startY: 750,
-            endX: 1000, endY: 100, endRadius: 40,
+            startX: 200, startY: 1300,
+            endX: 1700, endY: 150, endRadius: 50,
             obstacles: [
-                { x: 280, y: 720, radius: 28 },
-                { x: 350, y: 700, radius: 25 },
-                { x: 420, y: 680, radius: 30 },
-                { x: 500, y: 660, radius: 28 },
-                { x: 580, y: 650, radius: 25 },
-                { x: 320, y: 640, radius: 26 },
-                { x: 400, y: 620, radius: 28 },
-                { x: 480, y: 600, radius: 25 },
-                { x: 560, y: 590, radius: 27 },
-                { x: 640, y: 580, radius: 26 },
-                { x: 700, y: 500, radius: 30 },
-                { x: 650, y: 450, radius: 25 },
-                { x: 500, y: 380, radius: 35 },
-                { x: 550, y: 360, radius: 32 },
-                { x: 520, y: 340, radius: 30 },
-                { x: 570, y: 320, radius: 28 },
-                { x: 700, y: 350, radius: 38 },
-                { x: 750, y: 330, radius: 35 },
-                { x: 720, y: 300, radius: 32 },
-                { x: 600, y: 250, radius: 33 },
-                { x: 650, y: 230, radius: 30 },
-                { x: 630, y: 200, radius: 28 },
-                { x: 800, y: 200, radius: 40 },
-                { x: 900, y: 180, radius: 38 },
-                { x: 850, y: 220, radius: 35 },
-                { x: 920, y: 140, radius: 30 },
-                { x: 780, y: 150, radius: 32 }
+                // 圆形障碍（type 默认为 'circle'）
+                { x: 280, y: 1200, radius: 28 },
+                { x: 350, y: 1150, radius: 25 },
+                { x: 420, y: 1100, radius: 30 },
+                { x: 500, y: 1050, radius: 28 },
+                { x: 580, y: 1000, radius: 25 },
+                { x: 320, y: 950, radius: 26 },
+                { x: 400, y: 900, radius: 28 },
+                { x: 480, y: 850, radius: 25 },
+                { x: 560, y: 800, radius: 27 },
+                { x: 640, y: 750, radius: 26 },
+                { x: 700, y: 650, radius: 30 },
+                { x: 650, y: 550, radius: 25 },
+                { x: 500, y: 500, radius: 35 },
+                { x: 550, y: 480, radius: 32 },
+                { x: 520, y: 450, radius: 30 },
+                { x: 570, y: 420, radius: 28 },
+                { x: 700, y: 450, radius: 38 },
+                { x: 750, y: 430, radius: 35 },
+                { x: 720, y: 400, radius: 32 },
+                { x: 600, y: 350, radius: 33 },
+                { x: 650, y: 320, radius: 30 },
+                { x: 630, y: 280, radius: 28 },
+                { x: 800, y: 300, radius: 40 },
+                { x: 900, y: 280, radius: 38 },
+                { x: 850, y: 320, radius: 35 },
+                { x: 920, y: 240, radius: 30 },
+                { x: 780, y: 250, radius: 32 },
+                // 方块障碍（type: 'rect'，x/y 为左上角，w/h 为宽高）
+                { type: 'rect', x: 800, y: 600, w: 120, h: 40 },
+                { type: 'rect', x: 1000, y: 500, w: 40, h: 120 },
+                { type: 'rect', x: 1100, y: 700, w: 150, h: 50 },
+                { type: 'rect', x: 1200, y: 350, w: 60, h: 60 },
+                { type: 'rect', x: 1300, y: 550, w: 100, h: 80 },
+                { type: 'rect', x: 1450, y: 300, w: 80, h: 120 },
+                { type: 'rect', x: 1550, y: 450, w: 140, h: 60 },
+                { type: 'rect', x: 1600, y: 200, w: 100, h: 100 },
+                { type: 'rect', x: 100,  y: 400, w: 60,  h: 200 },
+                { type: 'rect', x: 900,  y: 150, w: 200, h: 50  }
             ]
         };
 
@@ -191,29 +203,58 @@
 
         function checkCollision() {
             const r = fish.radius * fish.scale;
-            // 膨胀到 95% 以上时无敌，不会掉血
-            const isInflatingMax = fish.scale >= 1.8 * 0.95;  // 95% of max scale (1.8)
+            // 膨胀到 95% 以上时无敌
+            const isInflatingMax = fish.scale >= 1.8 * 0.95;
             
             for (let o of level.obstacles) {
-                const dx = fish.x - o.x, dy = fish.y - o.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < r + o.radius) {
-                    // 物理碰撞：推开
-                    const overlap = r + o.radius - dist;
-                    const nx = dx/dist, ny = dy/dist;
-                    fish.x += nx * overlap; fish.y += ny * overlap;
-                    const speed = Math.sqrt(fish.vx*fish.vx + fish.vy*fish.vy);
-                    fish.vx = nx * speed * 0.8; fish.vy = ny * speed * 0.8;
-                    
-                    // 掉血判定：非无敌状态 + 非满膨胀
-                    if (fish.invincible <= 0 && !isInflatingMax) {
-                        const dmg = 10 + (fish.scale - 1) * 40;
-                        fish.hp -= dmg;
-                        fish.invincible = 0.5;
-                        playSound(150, 0.3, 'square');
-                        if (fish.hp <= 0) { fish.hp = 0; state.gameOver = true; }
+                if (o.type === 'rect') {
+                    // AABB 碰撞：圆形鱼 vs 矩形
+                    const rectLeft = o.x, rectRight = o.x + o.w;
+                    const rectTop = o.y, rectBottom = o.y + o.h;
+                    const cx = Math.max(rectLeft, Math.min(fish.x, rectRight));
+                    const cy = Math.max(rectTop, Math.min(fish.y, rectBottom));
+                    const dx = fish.x - cx, dy = fish.y - cy;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < r) {
+                        // 物理碰撞：推开
+                        const overlap = r - dist;
+                        let nx = dist > 0 ? dx/dist : 1, ny = dist > 0 ? dy/dist : 0;
+                        fish.x += nx * overlap; fish.y += ny * overlap;
+                        const speed = Math.sqrt(fish.vx*fish.vx + fish.vy*fish.vy);
+                        fish.vx = nx * speed * 0.8; fish.vy = ny * speed * 0.8;
+                        
+                        // 掉血判定：非无敌状态 + 非满膨胀
+                        if (fish.invincible <= 0 && !isInflatingMax) {
+                            const dmg = 10 + (fish.scale - 1) * 40;
+                            fish.hp -= dmg;
+                            fish.invincible = 0.5;
+                            playSound(150, 0.3, 'square');
+                            if (fish.hp <= 0) { fish.hp = 0; state.gameOver = true; }
+                        }
+                        return;
                     }
-                    return;
+                } else {
+                    // 圆形障碍（type 默认为 'circle'）
+                    const dx = fish.x - o.x, dy = fish.y - o.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < r + o.radius) {
+                        // 物理碰撞：推开
+                        const overlap = r + o.radius - dist;
+                        const nx = dx/dist, ny = dy/dist;
+                        fish.x += nx * overlap; fish.y += ny * overlap;
+                        const speed = Math.sqrt(fish.vx*fish.vx + fish.vy*fish.vy);
+                        fish.vx = nx * speed * 0.8; fish.vy = ny * speed * 0.8;
+                        
+                        // 掉血判定：非无敌状态 + 非满膨胀
+                        if (fish.invincible <= 0 && !isInflatingMax) {
+                            const dmg = 10 + (fish.scale - 1) * 40;
+                            fish.hp -= dmg;
+                            fish.invincible = 0.5;
+                            playSound(150, 0.3, 'square');
+                            if (fish.hp <= 0) { fish.hp = 0; state.gameOver = true; }
+                        }
+                        return;
+                    }
                 }
             }
         }
@@ -364,9 +405,16 @@
             ctx.fillText('END', level.endX, level.endY + level.endRadius + 15);
 
             // 障碍
-            ctx.fillStyle = '#f00';
             for (let o of level.obstacles) {
-                ctx.beginPath(); ctx.arc(o.x, o.y, o.radius, 0, Math.PI*2); ctx.fill();
+                if (o.type === 'rect') {
+                    ctx.fillStyle = '#f80';
+                    ctx.fillRect(o.x, o.y, o.w, o.h);
+                    ctx.strokeStyle = '#fa0'; ctx.lineWidth = 2;
+                    ctx.strokeRect(o.x, o.y, o.w, o.h);
+                } else {
+                    ctx.fillStyle = '#f00';
+                    ctx.beginPath(); ctx.arc(o.x, o.y, o.radius, 0, Math.PI*2); ctx.fill();
+                }
             }
 
             // 鱼
@@ -424,11 +472,16 @@
             ctx.strokeRect(mmX, mmY, MINIMAP_W, MINIMAP_H);
 
             // 障碍
-            ctx.fillStyle = 'rgba(255,60,60,0.7)';
             for (let o of level.obstacles) {
-                ctx.beginPath();
-                ctx.arc(mmX + o.x / sx, mmY + o.y / sy, Math.max(o.radius / sx, 3), 0, Math.PI*2);
-                ctx.fill();
+                if (o.type === 'rect') {
+                    ctx.fillStyle = 'rgba(255,140,0,0.7)';
+                    ctx.fillRect(mmX + o.x / sx, mmY + o.y / sy, o.w / sx, o.h / sy);
+                } else {
+                    ctx.fillStyle = 'rgba(255,60,60,0.7)';
+                    ctx.beginPath();
+                    ctx.arc(mmX + o.x / sx, mmY + o.y / sy, Math.max(o.radius / sx, 3), 0, Math.PI*2);
+                    ctx.fill();
+                }
             }
 
             // 起点终点
