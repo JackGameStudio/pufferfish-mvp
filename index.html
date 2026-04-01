@@ -83,48 +83,57 @@
         let lastTime = Date.now();
         let fps = 0, frameCount = 0;
 
-        const LEVEL_W = 2400, LEVEL_H = 850; // 横向扩张世界
+        const LEVEL_W = 1280, LEVEL_H = 750; // S形走廊关卡
 
-        // 关卡：J 新设计
+        // 关卡：J 调整版（S形走廊）
         const level = {
-            startX: 200, startY: 700,
-            endX: 2200, endY: 150, endRadius: 50,
-            obstacles: [
-                // 方块障碍（type: 'rect'，x/y 为左上角，w/h 为宽高）——碰撞只推开，不掉血
-                { type: 'rect', x: 0,    y: 760, w: 600,  h: 40   },
-                { type: 'rect', x: 650,  y: 760, w: 300,  h: 40   },
-                { type: 'rect', x: 1000, y: 760, w: 400,  h: 40   },
-                { type: 'rect', x: 1450, y: 760, w: 950,  h: 40   },
-                { type: 'rect', x: 0,    y: 500, w: 800,  h: 30   },
-                { type: 'rect', x: 0,    y: 600, w: 400,  h: 25   },
-                { type: 'rect', x: 500,  y: 350, w: 600,  h: 30   },
-                { type: 'rect', x: 500,  y: 450, w: 200,  h: 25   },
-                { type: 'rect', x: 1100, y: 300, w: 300,  h: 25   },
-                { type: 'rect', x: 1100, y: 420, w: 150,  h: 25   },
-                { type: 'rect', x: 1250, y: 500, w: 30,   h: 120  },
-                { type: 'rect', x: 1400, y: 250, w: 400,  h: 25   },
-                { type: 'rect', x: 1400, y: 350, w: 250,  h: 25   },
-                { type: 'rect', x: 1700, y: 280, w: 30,   h: 200  },
-                { type: 'rect', x: 2000, y: 50,  w: 400,  h: 30   },
-                { type: 'rect', x: 2000, y: 200, w: 100,  h: 25   },
-                { type: 'rect', x: 2200, y: 50,  w: 30,   h: 200  },
-                // 圆形障碍（type 默认为 'circle'）——碰撞推开并掉血
-                { x: 350,  y: 700, radius: 22 },
-                { x: 500,  y: 680, radius: 22 },
-                { x: 700,  y: 710, radius: 22 },
-                { x: 200,  y: 550, radius: 20 },
-                { x: 400,  y: 380, radius: 22 },
-                { x: 600,  y: 560, radius: 20 },
-                { x: 900,  y: 320, radius: 24 },
-                { x: 1050, y: 480, radius: 22 },
-                { x: 1200, y: 370, radius: 24 },
-                { x: 1350, y: 510, radius: 20 },
-                { x: 1550, y: 290, radius: 22 },
-                { x: 1750, y: 310, radius: 24 },
-                { x: 1900, y: 250, radius: 22 },
-                { x: 2100, y: 180, radius: 22 },
-                { x: 2150, y: 130, radius: 20 }
-            ]
+          startX: 80,
+          startY: 450,
+          endX: 1150,
+          endY: 550,
+          endRadius: 40,
+
+          obstacles: [
+            // === 段1：入口直道（x=150~400，中心y=450）===
+            // 上墙 y=320
+            { x: 150, y: 320, radius: 22 },
+            { x: 250, y: 320, radius: 22 },
+            { x: 350, y: 320, radius: 22 },
+            { x: 400, y: 320, radius: 22 },
+            // 下墙 y=580
+            { x: 150, y: 580, radius: 22 },
+            { x: 250, y: 580, radius: 22 },
+            { x: 350, y: 580, radius: 22 },
+            { x: 400, y: 580, radius: 22 },
+
+            // === 段2：向上弯折（x=400~700，走廊中心 y=450→y=220）===
+            // 上墙斜线 (400,320)→(700,100)
+            { x: 500, y: 247, radius: 22 },
+            { x: 600, y: 173, radius: 22 },
+            { x: 700, y: 100, radius: 22 },
+            // 下墙斜线 (400,580)→(700,340)
+            { x: 500, y: 500, radius: 22 },
+            { x: 600, y: 420, radius: 22 },
+            { x: 700, y: 340, radius: 22 },
+
+            // === 段3：向下弯折（x=700~950，走廊中心 y=220→y=550）===
+            // 上墙斜线 (700,100)→(950,430)
+            { x: 763, y: 183, radius: 22 },
+            { x: 825, y: 265, radius: 22 },
+            { x: 888, y: 348, radius: 22 },
+            { x: 950, y: 430, radius: 22 },
+            // 下墙斜线 (700,340)→(950,670)
+            { x: 763, y: 423, radius: 22 },
+            { x: 825, y: 505, radius: 22 },
+            { x: 888, y: 588, radius: 22 },
+            { x: 950, y: 670, radius: 22 },
+
+            // === 段4：出口直道（x=950~1150，中心y=550）===
+            // 上墙 y=430
+            { x: 1050, y: 430, radius: 22 },
+            // 下墙 y=670
+            { x: 1050, y: 670, radius: 22 },
+          ]
         };
 
         const camera = { x: 0, y: 0, tx: 0, ty: 0 };
