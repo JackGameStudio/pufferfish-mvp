@@ -75,6 +75,9 @@
   </div>
 </div>
 <script>
+// === 世界尺寸拖拽状态 ===
+let worldResize = null; // null | { edge: 'right'|'bottom', startX, startY, startW, startH }
+
 // === 状态 ===
 const state = {
   worldWidth: 2200,
@@ -204,8 +207,105 @@ function render() {
     const obj = state.objects.find(o => o.id === state.selectedId);
     if (obj) updatePropsPanel(obj);
   }
+  drawResizeHandles();
   requestAnimationFrame(render);
 }
+
+// === 世界尺寸拖拽视觉把手 ===
+function drawResizeHandles() {
+  const canvasRight = canvas.width;
+  const canvasBottom = canvas.height;
+
+  // 世界边缘的屏幕坐标
+  const sxRight = (state.worldWidth - state.worldWidth / 2) * state.viewScale + state.viewOffset.x;
+  const syBottom = (state.worldHeight - state.worldHeight / 2) * state.viewScale + state.viewOffset.y;
+
+  ctx.save();
+
+  // 右边缘把手（宽8px高100%的竖条）
+  ctx.fillStyle = worldResize?.edge === 'right' ? 'rgba(0,200,255,0.4)' : 'rgba(0,150,220,0.15)';
+  ctx.fillRect(canvasRight - 8, 0, 8, canvasBottom);
+  // 拖拽指示线（世界右边缘）
+  ctx.strokeStyle = worldResize?.edge === 'right' ? '#0cf' : 'rgba(0,200,255,0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(sxRight, Math.max(0, state.viewOffset.y));
+  ctx.lineTo(sxRight, Math.min(canvasBottom, state.viewOffset.y + state.worldHeight * state.viewScale));
+  ctx.stroke();
+
+  // 下边缘把手（宽100%高8px的横条）
+  ctx.fillStyle = worldResize?.edge === 'bottom' ? 'rgba(0,200,255,0.4)' : 'rgba(0,150,220,0.15)';
+  ctx.fillRect(0, canvasBottom - 8, canvasBottom, 8);
+  // 拖拽指示线（世界下边缘）
+  ctx.strokeStyle = worldResize?.edge === 'bottom' ? '#0cf' : 'rgba(0,200,255,0.4)';
+  ctx.beginPath();
+  ctx.moveTo(Math.max(0, state.viewOffset.x), syBottom);
+  ctx.lineTo(Math.min(canvasRight, state.viewOffset.x + state.worldWidth * state.viewScale), syBottom);
+  ctx.stroke();
+
+  // 尺寸标注
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#0cf';
+  ctx.font = '12px monospace';
+  ctx.fillText(`${state.worldWidth}×${state.worldHeight}`, canvasRight - 88, canvasBottom - 12);
+
+  ctx.restore();
+}
+
+// === 世界尺寸拖拽命中检测 ===
+function worldResizeHitTest(sx, sy) {
+  const canvasRight = canvas.width;
+  const canvasBottom = canvas.height;
+  // 右边缘（最后8px）
+  if (sx >= canvasRight - 8) return 'right';
+  // 下边缘（最后8px）
+  if (sy >= canvasBottom - 8) return 'bottom';
+  return null;
+}
+
+// === 世界尺寸拖拽事件 ===
+canvas.addEventListener('mousedown', e => {
+  if (state.mode !== 'edit') return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  const edge = worldResizeHitTest(sx, sy);
+  if (edge) {
+    worldResize = { edge, startX: sx, startY: sy, startW: state.worldWidth, startH: state.worldHeight };
+    e.preventDefault();
+    return;
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  // 更新鼠标样式
+  const edge = worldResizeHitTest(sx, sy);
+  canvas.style.cursor = edge ? 'ew-resize' : '';
+
+  if (worldResize) {
+    const dx = (sx - worldResize.startX) / state.viewScale;
+    const dy = (sy - worldResize.startY) / state.viewScale;
+    if (worldResize.edge === 'right') {
+      state.worldWidth = Math.max(400, Math.round(worldResize.startW + dx));
+    }
+    if (worldResize.edge === 'bottom') {
+      state.worldHeight = Math.max(300, Math.round(worldResize.startH + dy));
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (worldResize) {
+    saveHistory();
+    worldResize = null;
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  if (worldResize) { worldResize = null; }
+});
 
 // === 属性面板更新 ===
 function updatePropsPanel(obj) {
