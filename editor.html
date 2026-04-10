@@ -101,7 +101,160 @@ const ctx = canvas.getContext('2d');
 function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
-function init() { render(); }
+// === 坐标转换 ===
+// 将屏幕坐标转换为世界坐标
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - viewOffset.x) / viewScale + state.worldWidth / 2,
+    y: (sy - viewOffset.y) / viewScale + state.worldHeight / 2
+  };
+}
+
+// === 绘制网格 ===
+function drawGrid() {
+  const gridSize = 50;
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ctx.lineWidth = 1;
+  // 只画可见区域内的线
+  const startX = -viewOffset.x * viewScale;
+  const startY = -viewOffset.y * viewScale;
+  const endX = startX + canvas.width;
+  const endY = startY + canvas.height;
+  for (let x = 0; x < state.worldWidth; x += gridSize) {
+    const sx = (x - state.worldWidth / 2) * viewScale + viewOffset.x;
+    ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y < state.worldHeight; y += gridSize) {
+    const sy = (y - state.worldHeight / 2) * viewScale + viewOffset.y;
+    ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(canvas.width, sy); ctx.stroke();
+  }
+}
+
+// === 绘制世界边界 ===
+function drawWorldBounds() {
+  const wx = (-state.worldWidth / 2) * viewScale + viewOffset.x;
+  const wy = (-state.worldHeight / 2) * viewScale + viewOffset.y;
+  const ww = state.worldWidth * viewScale;
+  const wh = state.worldHeight * viewScale;
+  ctx.strokeStyle = 'rgba(0,100,200,0.5)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(wx, wy, ww, wh);
+  // 填充背景
+  ctx.fillStyle = '#001030';
+  ctx.fillRect(wx, wy, ww, wh);
+}
+
+// === 绘制单个物体 ===
+function drawObject(obj, isSelected) {
+  ctx.save();
+  const sx = (obj.x - state.worldWidth / 2) * viewScale + viewOffset.x;
+  const sy = (obj.y - state.worldHeight / 2) * viewScale + viewOffset.y;
+
+  if (obj.type === 'start') {
+    ctx.fillStyle = '#0f0';
+    ctx.beginPath(); ctx.arc(sx, sy, 12 * viewScale, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '10px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('START', sx, sy + 25 * viewScale);
+  } else if (obj.type === 'end') {
+    ctx.fillStyle = '#08f';
+    ctx.beginPath(); ctx.arc(sx, sy, (obj.radius || 40) * viewScale, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '10px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('END', sx, sy + (obj.radius || 40) * viewScale + 15);
+  } else if (obj.type === 'circle') {
+    ctx.fillStyle = '#f00';
+    ctx.beginPath(); ctx.arc(sx, sy, (obj.radius || 30) * viewScale, 0, Math.PI * 2); ctx.fill();
+  } else if (obj.type === 'rect') {
+    const rw = (obj.w || 60) * viewScale;
+    const rh = (obj.h || 40) * viewScale;
+    ctx.fillStyle = 'rgba(0,80,180,0.25)';
+    ctx.fillRect(sx - rw / 2, sy - rh / 2, rw, rh);
+    ctx.strokeStyle = 'rgba(0,100,200,0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(sx - rw / 2, sy - rh / 2, rw, rh);
+  }
+
+  // 选中状态
+  if (isSelected) {
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 2;
+    if (obj.type === 'rect') {
+      const rw = (obj.w || 60) * viewScale;
+      const rh = (obj.h || 40) * viewScale;
+      ctx.strokeRect(sx - rw / 2 - 3, sy - rh / 2 - 3, rw + 6, rh + 6);
+    } else {
+      ctx.beginPath();
+      ctx.arc(sx, sy, ((obj.type === 'end' ? obj.radius : obj.type === 'circle' ? obj.radius : 12) || 30) * viewScale + 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+// === 主渲染函数 ===
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawWorldBounds();
+  drawGrid();
+  // 绘制所有物体
+  for (const obj of state.objects) {
+    drawObject(obj, obj.id === state.selectedId);
+  }
+  // 选中时在属性面板显示信息
+  if (state.selectedId !== null) {
+    const obj = state.objects.find(o => o.id === state.selectedId);
+    if (obj) updatePropsPanel(obj);
+  }
+  requestAnimationFrame(render);
+}
+
+// === 属性面板更新 ===
+function updatePropsPanel(obj) {
+  let panel = document.getElementById('props-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'props-panel';
+    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#222;border-top:2px solid #0af;padding:10px;display:flex;gap:8px;align-items:center;z-index:10;flex-wrap:wrap;';
+    document.body.appendChild(panel);
+  }
+  const r = obj.type === 'rect' ? '' : `半径: <input id="prop-r" type="number" value="${obj.radius || ''}" style="width:60px;background:#333;color:#fff;border:1px solid #555;padding:3px;border-radius:3px;">`;
+  panel.innerHTML = `
+    ${obj.type !== 'rect' ? '' : ''}
+    X: <input id="prop-x" type="number" value="${Math.round(obj.x)}" style="width:70px;background:#333;color:#fff;border:1px solid #555;padding:3px;border-radius:3px;">
+    Y: <input id="prop-y" type="number" value="${Math.round(obj.y)}" style="width:70px;background:#333;color:#fff;border:1px solid #555;padding:3px;border-radius:3px;">
+    ${obj.type === 'rect' ? `W: <input id="prop-w" type="number" value="${obj.w || 60}" style="width:60px;background:#333;color:#fff;border:1px solid #555;padding:3px;border-radius:3px;">
+    H: <input id="prop-h" type="number" value="${obj.h || 40}" style="width:60px;background:#333;color:#fff;border:1px solid #555;padding:3px;border-radius:3px;">` : ''}
+    ${obj.type === 'end' ? `半径: <input id="prop-radius" type="number" value="${obj.radius || 40}" style="width:60px;background:#333;color:#fff;border:1px solid #555;padding:3px;border-radius:3px;">` : ''}
+    <span style="color:#aaa;margin-left:8px;">[${obj.type}]</span>
+    <button onclick="deleteSelected()" style="margin-left:auto;background:#a22;color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;">删除</button>
+  `;
+
+  // 绑定属性更新
+  document.getElementById('prop-x')?.addEventListener('input', e => { obj.x = +e.target.value; });
+  document.getElementById('prop-y')?.addEventListener('input', e => { obj.y = +e.target.value; });
+  if (obj.type === 'rect') {
+    document.getElementById('prop-w')?.addEventListener('input', e => { obj.w = +e.target.value; });
+    document.getElementById('prop-h')?.addEventListener('input', e => { obj.h = +e.target.value; });
+  }
+  if (obj.type === 'end') {
+    document.getElementById('prop-radius')?.addEventListener('input', e => { obj.radius = +e.target.value; });
+  }
+}
+
+// === 删除选中物体 ===
+window.deleteSelected = function() {
+  if (state.selectedId !== null) {
+    saveHistory();
+    state.objects = state.objects.filter(o => o.id !== state.selectedId);
+    state.selectedId = null;
+    const panel = document.getElementById('props-panel');
+    if (panel) panel.remove();
+  }
+};
+
+// === 初始化时开始渲染循环 ===
+init = function() {
+  requestAnimationFrame(render);
+};
 init();
 </script>
 </body>
