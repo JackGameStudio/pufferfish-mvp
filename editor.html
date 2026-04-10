@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>弹弹河豚 - 关卡编辑器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a1a; overflow: hidden; font-family: Arial, sans-serif; }
+  canvas { display: block; position: fixed; top: 0; left: 0; }
+  /* 工具栏 */
+  #toolbar {
+    position: fixed; top: 0; left: 0; right: 0; height: 44px;
+    background: #222; border-bottom: 2px solid #0af;
+    display: flex; align-items: center; padding: 0 10px; gap: 4px; z-index: 10;
+  }
+  .toolbar-group { display: flex; gap: 4px; align-items: center; }
+  .toolbar-sep { width: 1px; height: 28px; background: #555; margin: 0 6px; }
+  .tool-btn {
+    padding: 5px 10px; background: #333; color: #ccc; border: 1px solid #555;
+    border-radius: 4px; cursor: pointer; font-size: 13px;
+  }
+  .tool-btn:hover { background: #444; color: #fff; }
+  .tool-btn.active { background: #0af; color: #000; border-color: #0af; font-weight: bold; }
+  .tool-btn.danger { background: #a22; color: #fff; border-color: #a22; }
+  .tool-btn.primary { background: #0a6; color: #fff; border-color: #0a6; }
+  /* 模态框 */
+  #modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    z-index: 100; justify-content: center; align-items: center;
+  }
+  #modal.show { display: flex; }
+  #modal-content {
+    background: #222; border: 2px solid #0af; border-radius: 8px;
+    padding: 20px; min-width: 500px; max-width: 700px; color: #fff;
+  }
+  #modal-content h3 { margin-bottom: 12px; color: #0af; }
+  #export-code {
+    width: 100%; height: 300px; background: #111; color: #0f0;
+    border: 1px solid #444; border-radius: 4px; font-family: monospace;
+    font-size: 12px; padding: 8px; resize: none;
+  }
+  #modal-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="toolbar">
+  <div class="toolbar-group">
+    <button class="tool-btn active" id="btn-select" data-tool="select">🖱️ 选择</button>
+    <button class="tool-btn" id="btn-circle" data-tool="circle">🔴 圆形</button>
+    <button class="tool-btn" id="btn-rect" data-tool="rect">🟦 方块</button>
+    <button class="tool-btn" id="btn-start" data-tool="start">🟢 起点</button>
+    <button class="tool-btn" id="btn-end" data-tool="end">🔵 终点</button>
+  </div>
+  <div class="toolbar-sep"></div>
+  <div class="toolbar-group">
+    <button class="tool-btn" id="btn-undo">↩️ 撤销</button>
+    <button class="tool-btn" id="btn-redo">↪️ 重做</button>
+  </div>
+  <div class="toolbar-sep"></div>
+  <div class="toolbar-group">
+    <button class="tool-btn primary" id="btn-play">▶️ 试玩</button>
+    <button class="tool-btn" id="btn-export">📋 导出</button>
+    <button class="tool-btn" id="btn-load">📂 加载</button>
+  </div>
+</div>
+<div id="modal">
+  <div id="modal-content">
+    <h3>复制关卡代码</h3>
+    <textarea id="export-code" readonly></textarea>
+    <div id="modal-actions">
+      <button class="tool-btn" id="modal-close">关闭</button>
+    </div>
+  </div>
+</div>
+<script>
+// === 状态 ===
+const state = {
+  worldWidth: 2200,
+  worldHeight: 750,
+  fishScale: 1.0,
+  objects: [],
+  history: [],
+  historyIndex: -1,
+  mode: 'edit',       // 'edit' | 'play'
+  selectedId: null,
+  activeTool: 'select',
+  viewOffset: { x: 1100, y: 375 },  // 居中
+  viewScale: 1.0,
+  dragState: null,
+  nextId: 1,
+  // 试玩模式
+  playFish: null,
+  playInput: null,
+  playCamera: null,
+};
+// === 入口 ===
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+function init() { render(); }
+init();
+</script>
+</body>
+</html>
