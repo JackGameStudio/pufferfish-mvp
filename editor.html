@@ -124,13 +124,13 @@ function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = wind
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 function initCamera() {
-  // 根据窗口大小自动居中世界（保持完整可见）
+  // 根据窗口大小自动缩放，让世界完整可见
   const scaleX = canvas.width / state.worldWidth;
   const scaleY = canvas.height / state.worldHeight;
   state.viewScale = Math.min(scaleX, scaleY) * 0.9; // 留10%边距
-  // 世界中心对齐屏幕中心
-  state.viewOffset.x = canvas.width / 2 - (state.worldWidth / 2) * state.viewScale;
-  state.viewOffset.y = canvas.height / 2 - (state.worldHeight / 2) * state.viewScale;
+  // 世界中心对齐屏幕中心（viewOffset 是世界中心的屏幕坐标）
+  state.viewOffset.x = canvas.width / 2;
+  state.viewOffset.y = canvas.height / 2;
 }
 // === 坐标转换 ===
 // 将屏幕坐标转换为世界坐标
