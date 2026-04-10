@@ -108,7 +108,7 @@ const state = {
   mode: 'edit',       // 'edit' | 'play'
   selectedId: null,
   activeTool: 'select',
-  viewOffset: { x: 1100, y: 375 },  // 居中
+  viewOffset: { x: 0, y: 0 },       // 由 init() 根据窗口大小居中
   viewScale: 1.0,
   dragState: null,
   nextId: 1,
@@ -120,9 +120,18 @@ const state = {
 // === 入口 ===
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; initCamera(); }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
+function initCamera() {
+  // 根据窗口大小自动居中世界（保持完整可见）
+  const scaleX = canvas.width / state.worldWidth;
+  const scaleY = canvas.height / state.worldHeight;
+  state.viewScale = Math.min(scaleX, scaleY) * 0.9; // 留10%边距
+  // 世界中心对齐屏幕中心
+  state.viewOffset.x = canvas.width / 2 - (state.worldWidth / 2) * state.viewScale;
+  state.viewOffset.y = canvas.height / 2 - (state.worldHeight / 2) * state.viewScale;
+}
 // === 坐标转换 ===
 // 将屏幕坐标转换为世界坐标
 function screenToWorld(sx, sy) {
@@ -353,6 +362,9 @@ function updatePropsPanel(obj) {
   if (obj.type === 'rect') {
     document.getElementById('prop-w')?.addEventListener('input', e => { obj.w = +e.target.value; });
     document.getElementById('prop-h')?.addEventListener('input', e => { obj.h = +e.target.value; });
+  }
+  if (obj.type === 'circle') {
+    document.getElementById('prop-r')?.addEventListener('input', e => { obj.radius = +e.target.value; });
   }
   if (obj.type === 'end') {
     document.getElementById('prop-radius')?.addEventListener('input', e => { obj.radius = +e.target.value; });
