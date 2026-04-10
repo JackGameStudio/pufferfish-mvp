@@ -24,6 +24,16 @@
   .tool-btn.active { background: #0af; color: #000; border-color: #0af; font-weight: bold; }
   .tool-btn.danger { background: #a22; color: #fff; border-color: #a22; }
   .tool-btn.primary { background: #0a6; color: #fff; border-color: #0a6; }
+  #fish-scale-label { color: #aaa; font-size: 12px; white-space: nowrap; }
+  #fish-scale { accent-color: #0af; width: 80px; vertical-align: middle; }
+  #shortcuts-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #1a1a1a; border-top: 1px solid #333;
+    padding: 5px 14px; display: flex; gap: 20px;
+    font-size: 11px; color: #888; z-index: 10;
+  }
+  #shortcuts-bar span { white-space: nowrap; }
+  #shortcuts-bar span b { color: #0af; font-weight: normal; }
   /* 模态框 */
   #modal {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -64,6 +74,15 @@
     <button class="tool-btn" id="btn-export">📋 导出</button>
     <button class="tool-btn" id="btn-load">📂 加载</button>
   </div>
+  <div class="toolbar-sep"></div>
+  <div class="toolbar-group" style="gap:6px;">
+    <label id="fish-scale-label" for="fish-scale">🌊 鱼大小:</label>
+    <input type="range" id="fish-scale" min="0.5" max="2" step="0.1" value="1">
+  </div>
+</div>
+<div id="shortcuts-bar">
+  <span>🎮 试玩: <b>←/→</b> 调整角度 &nbsp;|&nbsp; <b>空格</b> 发射 &nbsp;|&nbsp; <b>ESC</b> 退出</span>
+  <span>✏️ 编辑: <b>Ctrl+Z</b> 撤销 &nbsp;|&nbsp; <b>Ctrl+Y</b> 重做 &nbsp;|&nbsp; <b>Delete</b> / <b>Backspace</b> 删除选中</span>
 </div>
 <div id="modal">
   <div id="modal-content">
@@ -536,6 +555,9 @@ document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
 
 document.getElementById('btn-undo')?.addEventListener('click', undo);
 document.getElementById('btn-redo')?.addEventListener('click', redo);
+document.getElementById('fish-scale')?.addEventListener('input', e => {
+  state.fishScale = parseFloat(e.target.value);
+});
 
 // === 导出 JS 代码 ===
 function exportLevelCode() {

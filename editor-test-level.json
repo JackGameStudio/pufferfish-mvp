@@ -1,0 +1,16 @@
+{
+  "worldWidth": 2200,
+  "worldHeight": 750,
+  "fishScale": 1,
+  "objects": [
+    { "id": 1, "type": "start", "x": 200, "y": 650 },
+    { "id": 2, "type": "end",   "x": 2000, "y": 100, "radius": 40 },
+    { "id": 3, "type": "circle", "x": 500, "y": 500, "radius": 35 },
+    { "id": 4, "type": "circle", "x": 700, "y": 350, "radius": 30 },
+    { "id": 5, "type": "rect",   "x": 900, "y": 450, "w": 120, "h": 25 },
+    { "id": 6, "type": "circle", "x": 1100, "y": 300, "radius": 40 },
+    { "id": 7, "type": "rect",   "x": 1300, "y": 500, "w": 80, "h": 80 },
+    { "id": 8, "type": "circle", "x": 1500, "y": 200, "radius": 30 },
+    { "id": 9, "type": "rect",   "x": 1700, "y": 350, "w": 150, "h": 20 }
+  ]
+}
