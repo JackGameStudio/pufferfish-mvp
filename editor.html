@@ -518,6 +518,309 @@ document.getElementById('btn-load')?.addEventListener('click', () => {
   }
 });
 
+// ==============================================
+// 试玩模式
+// ==============================================
+
+let playState = null;   // null | { fish, angle, phase, vel, pos, launched, hitCount }
+
+function startPlayMode() {
+  const start = state.objects.find(o => o.type === 'start');
+  const end = state.objects.find(o => o.type === 'end');
+  if (!start) { alert('请先放置起点！'); return; }
+  if (!end) { alert('请先放置终点！'); return; }
+
+  state.mode = 'play';
+  state.playFish = { x: start.x, y: start.y, angle: -Math.PI / 4, scale: state.fishScale };
+  state.playInput = { angle: -Math.PI / 4 };
+  state.playCamera = { x: state.playFish.x, y: state.playFish.y };
+
+  playState = {
+    phase: 'aim',    // 'aim' | 'fly' | 'win' | 'dead'
+    angle: state.playFish.angle,
+    vel: { x: 0, y: 0 },
+    pos: { x: state.playFish.x, y: state.playFish.y },
+    launched: false,
+    hitCount: 0,
+    aimTimer: 0,
+    aimDir: 1,       // 旋转方向
+    startTime: Date.now(),
+  };
+
+  document.getElementById('btn-play').textContent = '⏹ 退出';
+  document.getElementById('btn-play').classList.add('active');
+  document.getElementById('props-panel')?.remove();
+  document.getElementById('play-hud')?.remove();
+  const hud = document.createElement('div');
+  hud.id = 'play-hud';
+  hud.style.cssText = 'position:fixed;bottom:12px;right:12px;background:rgba(0,0,0,0.75);color:#fff;padding:8px 14px;border-radius:6px;font-size:13px;z-index:20;pointer-events:none;';
+  hud.innerHTML = '<b>🎮 试玩中</b> — 方向键调整角度 | 空格发射 | ESC退出';
+  document.body.appendChild(hud);
+
+  // 方向键控制瞄准
+  window.addEventListener('keydown', playKeyHandler);
+  requestAnimationFrame(playLoop);
+}
+
+function stopPlayMode() {
+  state.mode = 'edit';
+  playState = null;
+  window.removeEventListener('keydown', playKeyHandler);
+  document.getElementById('play-hud')?.remove();
+  document.getElementById('btn-play').textContent = '▶️ 试玩';
+  document.getElementById('btn-play').classList.remove('active');
+}
+
+function playKeyHandler(e) {
+  if (!playState) return;
+  if (e.key === 'Escape') { stopPlayMode(); return; }
+  if (playState.phase === 'aim') {
+    const speed = 0.06;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      playState.angle -= speed; playState.aimDir = -1;
+    }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      playState.angle += speed; playState.aimDir = 1;
+    }
+    if (e.key === ' ') {
+      e.preventDefault();
+      // 发射！
+      const speed2 = 15;
+      playState.vel.x = Math.cos(playState.angle) * speed2;
+      playState.vel.y = Math.sin(playState.angle) * speed2;
+      playState.phase = 'fly';
+      playState.launched = true;
+    }
+  }
+}
+
+function playCircleCollide(px, py, cx, cy, r) {
+  const dx = px - cx, dy = py - cy;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  if (d < r + 8) {
+    const nx = dx / d, ny = dy / d;
+    // 反射速度
+    const dot = playState.vel.x * nx + playState.vel.y * ny;
+    if (dot < 0) {
+      playState.vel.x -= 2 * dot * nx;
+      playState.vel.y -= 2 * dot * ny;
+    }
+    // 推出碰撞区
+    playState.pos.x = cx + nx * (r + 9);
+    playState.pos.y = cy + ny * (r + 9);
+    return true;
+  }
+  return false;
+}
+
+function playRectCollide(px, py, rw, rh, rx, ry) {
+  const hw = rw / 2, hh = rh / 2;
+  const cx = rx, cy = ry;
+  const nx = Math.max(cx - hw, Math.min(px, cx + hw));
+  const ny = Math.max(cy - hh, Math.min(py, cy + hh));
+  const dx = px - nx, dy = py - ny;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  if (d < 9) {
+    if (d > 0) {
+      playState.vel.x += dx / d * (9 - d + 1);
+      playState.vel.y += dy / d * (9 - d + 1);
+    }
+    // push out
+    if (Math.abs(dx) > Math.abs(dy)) {
+      playState.vel.x *= -0.8;
+      playState.pos.x = dx > 0 ? cx + hw + 1 : cx - hw - 1;
+    } else {
+      playState.vel.y *= -0.8;
+      playState.pos.y = dy > 0 ? cy + hh + 1 : cy - hh - 1;
+    }
+    return true;
+  }
+  return false;
+}
+
+function playLoop() {
+  if (state.mode !== 'play' || !playState) return;
+
+  const dt = 1 / 60;
+  if (playState.phase === 'fly') {
+    // 重力
+    playState.vel.y += 0.5;
+    playState.pos.x += playState.vel.x;
+    playState.pos.y += playState.vel.y;
+    playState.hitCount++;
+
+    // 边界反弹
+    const hw = state.worldWidth / 2, hh = state.worldHeight / 2;
+    if (playState.pos.x < -hw + 8) { playState.pos.x = -hw + 8; playState.vel.x *= -0.8; }
+    if (playState.pos.x > hw - 8) { playState.pos.x = hw - 8; playState.vel.x *= -0.8; }
+    if (playState.pos.y > hh - 8) { playState.pos.y = hh - 8; playState.vel.y *= -0.8; }
+    if (playState.pos.y < -hh + 8) { playState.vel.y *= -0.8; }
+
+    // 障碍碰撞
+    for (const obj of state.objects) {
+      if (obj.type === 'circle') {
+        playCircleCollide(playState.pos.x, playState.pos.y, obj.x, obj.y, obj.radius || 30);
+      } else if (obj.type === 'rect') {
+        playRectCollide(playState.pos.x, playState.pos.y, obj.w || 60, obj.h || 40, obj.x, obj.y);
+      }
+    }
+
+    // 终点检测
+    const end = state.objects.find(o => o.type === 'end');
+    if (end) {
+      const dx = playState.pos.x - end.x, dy = playState.pos.y - end.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < (end.radius || 40) + 5) {
+        playState.phase = 'win';
+        setTimeout(() => {
+          alert('🎉 通关！用了 ' + playState.hitCount + ' 次弹射');
+          stopPlayMode();
+        }, 100);
+        requestAnimationFrame(playLoop);
+        return;
+      }
+    }
+
+    // 超时自动重置
+    if (Date.now() - playState.startTime > 20000) {
+      playState.phase = 'dead';
+      setTimeout(() => {
+        alert('😵 掉出边界太久，重新开始！');
+        stopPlayMode();
+        setTimeout(startPlayMode, 50);
+      }, 100);
+      requestAnimationFrame(playLoop);
+      return;
+    }
+  }
+
+  // 更新摄像机
+  if (state.playCamera) {
+    const tx = state.playCamera.x + (playState.pos.x - state.playCamera.x) * 0.08;
+    const ty = state.playCamera.y + (playState.pos.y - state.playCamera.y) * 0.08;
+    state.playCamera.x = tx;
+    state.playCamera.y = ty;
+  }
+
+  // 渲染试玩画面（覆盖在编辑器画布上）
+  const prevOffset = { ...state.viewOffset };
+  const prevScale = state.viewScale;
+  if (state.playCamera) {
+    state.viewOffset = { x: canvas.width / 2 - state.playCamera.x, y: canvas.height / 2 - state.playCamera.y };
+  }
+
+  // 绘制游戏画面
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 背景
+  ctx.fillStyle = '#000d1a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // 边界
+  drawWorldBounds();
+
+  // 障碍物（红色/橙色）
+  for (const obj of state.objects) {
+    if (obj.type === 'circle' || obj.type === 'rect') {
+      ctx.save();
+      const sx = (obj.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x;
+      const sy = (obj.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y;
+      if (obj.type === 'circle') {
+        ctx.fillStyle = '#f33';
+        ctx.beginPath(); ctx.arc(sx, sy, (obj.radius || 30) * state.viewScale, 0, Math.PI * 2); ctx.fill();
+      } else {
+        const rw = (obj.w || 60) * state.viewScale, rh = (obj.h || 40) * state.viewScale;
+        ctx.fillStyle = 'rgba(220,60,0,0.4)';
+        ctx.fillRect(sx - rw / 2, sy - rh / 2, rw, rh);
+        ctx.strokeStyle = '#e84';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx - rw / 2, sy - rh / 2, rw, rh);
+      }
+      ctx.restore();
+    }
+  }
+
+  // 终点
+  const end2 = state.objects.find(o => o.type === 'end');
+  if (end2) {
+    ctx.save();
+    const sx = (end2.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x;
+    const sy = (end2.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y;
+    ctx.fillStyle = '#08f';
+    ctx.beginPath(); ctx.arc(sx, sy, (end2.radius || 40) * state.viewScale, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // 弹射轨迹预览（瞄准时）
+  if (playState.phase === 'aim') {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,0,0.5)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(
+      (playState.pos.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x,
+      (playState.pos.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y
+    );
+    const len = 60;
+    ctx.lineTo(
+      (playState.pos.x + Math.cos(playState.angle) * len - state.worldWidth / 2) * state.viewScale + state.viewOffset.x,
+      (playState.pos.y + Math.sin(playState.angle) * len - state.worldWidth / 2) * state.viewScale + state.viewOffset.y
+    );
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 绘制鱼
+  ctx.save();
+  const fishX = (playState.pos.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x;
+  const fishY = (playState.pos.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y;
+  const fishR = 14 * (state.fishScale || 1) * state.viewScale;
+  ctx.translate(fishX, fishY);
+  ctx.rotate(playState.vel.x !== 0 || playState.vel.y !== 0
+    ? Math.atan2(playState.vel.y, playState.vel.x)
+    : playState.angle);
+
+  // 鱼身
+  ctx.fillStyle = '#ffd700';
+  ctx.beginPath(); ctx.arc(0, 0, fishR, 0, Math.PI * 2); ctx.fill();
+  // 眼睛
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(fishR * 0.4, -fishR * 0.3, fishR * 0.25, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(fishR * 0.48, -fishR * 0.33, fishR * 0.1, 0, Math.PI * 2); ctx.fill();
+  // 鱼鳍
+  ctx.fillStyle = '#ff9900';
+  ctx.beginPath();
+  ctx.moveTo(-fishR * 0.2, -fishR * 0.8);
+  ctx.lineTo(fishR * 0.1, -fishR * 0.3);
+  ctx.lineTo(-fishR * 0.5, -fishR * 0.2);
+  ctx.closePath(); ctx.fill();
+
+  ctx.restore();
+
+  // HUD信息
+  ctx.fillStyle = '#0f0';
+  ctx.font = '14px monospace';
+  ctx.fillText(`命中: ${playState.hitCount}`, 12, canvas.height - 14);
+  if (playState.phase === 'win') ctx.fillText('🎉 通关！', 12, canvas.height - 36);
+
+  // 恢复视图
+  state.viewOffset = prevOffset;
+  state.viewScale = prevScale;
+
+  requestAnimationFrame(playLoop);
+}
+
+// === 试玩按钮 ===
+document.getElementById('btn-play')?.addEventListener('click', () => {
+  if (state.mode === 'edit') {
+    startPlayMode();
+  } else {
+    stopPlayMode();
+  }
+});
+
 // === 初始化时开始渲染循环 ===
 init = function() {
   // 初始化历史记录
