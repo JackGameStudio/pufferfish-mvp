@@ -840,7 +840,11 @@ function playLoop() {
   const prevOffset = { ...state.viewOffset };
   const prevScale = state.viewScale;
   if (state.playCamera) {
-    state.viewOffset = { x: canvas.width / 2 - state.playCamera.x, y: canvas.height / 2 - state.playCamera.y };
+    // viewOffset 应让摄像机世界坐标渲染到屏幕中心
+    state.viewOffset = { 
+      x: canvas.width / 2 - (state.playCamera.x - state.worldWidth / 2) * state.viewScale, 
+      y: canvas.height / 2 - (state.playCamera.y - state.worldHeight / 2) * state.viewScale 
+    };
   }
 
   // 绘制游戏画面
