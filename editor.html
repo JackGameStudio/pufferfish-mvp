@@ -305,6 +305,7 @@ function hitTest(wx, wy) {
 
 // === 鼠标/触控事件 ===
 let panStart = null;
+let wasPanning = false;   // 防止 pan 后触发 click 误取消选中
 let mouseScreen = { x: 0, y: 0 };
 
 canvas.addEventListener('mousedown', e => {
@@ -375,11 +376,15 @@ canvas.addEventListener('mouseup', e => {
     saveHistory();
     state.dragState = null;
   }
+  wasPanning = panStart !== null;
   panStart = null;
 });
 
 canvas.addEventListener('click', e => {
-  if (state.mode !== 'edit' || state.activeTool !== 'select') return;
+  if (state.mode !== 'edit' || state.activeTool !== 'select' || wasPanning) {
+    wasPanning = false;
+    return;
+  }
   const sx = e.clientX, sy = e.clientY;
   const w = screenToWorld(sx, sy);
   const hit = hitTest(w.x, w.y);
