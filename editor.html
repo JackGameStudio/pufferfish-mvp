@@ -765,7 +765,7 @@ function playLoop() {
     const len = 60;
     ctx.lineTo(
       (playState.pos.x + Math.cos(playState.angle) * len - state.worldWidth / 2) * state.viewScale + state.viewOffset.x,
-      (playState.pos.y + Math.sin(playState.angle) * len - state.worldWidth / 2) * state.viewScale + state.viewOffset.y
+      (playState.pos.y + Math.sin(playState.angle) * len - state.worldHeight / 2) * state.viewScale + state.viewOffset.y
     );
     ctx.stroke();
     ctx.restore();
