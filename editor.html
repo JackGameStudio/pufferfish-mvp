@@ -251,8 +251,191 @@ window.deleteSelected = function() {
   }
 };
 
+// === 历史记录（撤销/重做）===
+function saveHistory() {
+  // 截断重做历史
+  state.history = state.history.slice(0, state.historyIndex + 1);
+  // 保存当前 objects 快照（深拷贝）
+  state.history.push(JSON.parse(JSON.stringify(state.objects)));
+  state.historyIndex = state.history.length - 1;
+  // 限制历史步数
+  if (state.history.length > 50) {
+    state.history.shift();
+    state.historyIndex--;
+  }
+}
+
+function undo() {
+  if (state.historyIndex > 0) {
+    state.historyIndex--;
+    state.objects = JSON.parse(JSON.stringify(state.history[state.historyIndex]));
+    state.selectedId = null;
+    const panel = document.getElementById('props-panel');
+    if (panel) panel.remove();
+  }
+}
+
+function redo() {
+  if (state.historyIndex < state.history.length - 1) {
+    state.historyIndex++;
+    state.objects = JSON.parse(JSON.stringify(state.history[state.historyIndex]));
+    state.selectedId = null;
+    const panel = document.getElementById('props-panel');
+    if (panel) panel.remove();
+  }
+}
+
+// === 点击命中检测 ===
+function hitTest(wx, wy) {
+  // 按 z-order 逆序（后面的物体先检测）
+  for (let i = state.objects.length - 1; i >= 0; i--) {
+    const obj = state.objects[i];
+    const dx = wx - obj.x;
+    const dy = wy - obj.y;
+    if (obj.type === 'rect') {
+      const hw = (obj.w || 60) / 2, hh = (obj.h || 40) / 2;
+      if (dx >= -hw && dx <= hw && dy >= -hh && dy <= hh) return obj;
+    } else {
+      const r = obj.type === 'end' ? (obj.radius || 40) : obj.type === 'circle' ? (obj.radius || 30) : 15;
+      if (dx * dx + dy * dy <= r * r) return obj;
+    }
+  }
+  return null;
+}
+
+// === 鼠标/触控事件 ===
+let panStart = null;
+let mouseScreen = { x: 0, y: 0 };
+
+canvas.addEventListener('mousedown', e => {
+  if (state.mode !== 'edit') return;
+  const sx = e.clientX, sy = e.clientY;
+  const w = screenToWorld(sx, sy);
+  const hit = hitTest(w.x, w.y);
+  mouseScreen = { x: sx, y: sy };
+
+  if (state.activeTool === 'select') {
+    if (hit) {
+      state.selectedId = hit.id;
+      state.dragState = { type: 'move', obj: hit, startWX: w.x, startWY: w.y, objStartX: hit.x, objStartY: hit.y };
+    } else {
+      state.selectedId = null;
+      const panel = document.getElementById('props-panel');
+      if (panel) panel.remove();
+      panStart = { x: sx, y: sy, ox: state.viewOffset.x, oy: state.viewOffset.y };
+    }
+  } else {
+    // 放置模式
+    const newObj = { id: state.nextId++, x: w.x, y: w.y };
+    if (state.activeTool === 'circle') {
+      newObj.type = 'circle';
+      newObj.radius = 40;
+    } else if (state.activeTool === 'rect') {
+      newObj.type = 'rect';
+      newObj.w = 80;
+      newObj.h = 40;
+    } else if (state.activeTool === 'start') {
+      // 替换已有起点
+      const existing = state.objects.find(o => o.type === 'start');
+      if (existing) { state.objects = state.objects.filter(o => o.id !== existing.id); }
+      newObj.type = 'start';
+    } else if (state.activeTool === 'end') {
+      const existing = state.objects.find(o => o.type === 'end');
+      if (existing) { state.objects = state.objects.filter(o => o.id !== existing.id); }
+      newObj.type = 'end';
+      newObj.radius = 40;
+    }
+    saveHistory();
+    state.objects.push(newObj);
+    state.selectedId = newObj.id;
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (state.mode !== 'edit') return;
+  const sx = e.clientX, sy = e.clientY;
+  const w = screenToWorld(sx, sy);
+
+  if (state.dragState && state.dragState.type === 'move') {
+    const obj = state.objects.find(o => o.id === state.dragState.obj.id);
+    if (obj) {
+      obj.x = state.dragState.objStartX + (w.x - state.dragState.startWX);
+      obj.y = state.dragState.objStartY + (w.y - state.dragState.startWY);
+    }
+  } else if (panStart) {
+    state.viewOffset.x = panStart.ox + (sx - panStart.x);
+    state.viewOffset.y = panStart.oy + (sy - panStart.y);
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (state.mode !== 'edit') return;
+  if (state.dragState) {
+    // 拖拽结束，保存历史
+    saveHistory();
+    state.dragState = null;
+  }
+  panStart = null;
+});
+
+canvas.addEventListener('click', e => {
+  if (state.mode !== 'edit' || state.activeTool !== 'select') return;
+  const sx = e.clientX, sy = e.clientY;
+  const w = screenToWorld(sx, sy);
+  const hit = hitTest(w.x, w.y);
+  state.selectedId = hit ? hit.id : null;
+  const panel = document.getElementById('props-panel');
+  if (!state.selectedId && panel) panel.remove();
+});
+
+// === 滚轮缩放 ===
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 0.9 : 1.1;
+  const newScale = Math.max(0.1, Math.min(4, state.viewScale * factor));
+  // 以鼠标位置为中心缩放
+  const sx = e.clientX, sy = e.clientY;
+  const wBefore = screenToWorld(sx, sy);
+  state.viewScale = newScale;
+  const wAfter = screenToWorld(sx, sy);
+  state.viewOffset.x += (wAfter.x - wBefore.x) * state.viewScale;
+  state.viewOffset.y += (wAfter.y - wBefore.y) * state.viewScale;
+}, { passive: false });
+
+// === 键盘快捷键 ===
+window.addEventListener('keydown', e => {
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (state.mode === 'edit' && state.selectedId !== null) {
+      saveHistory();
+      state.objects = state.objects.filter(o => o.id !== state.selectedId);
+      state.selectedId = null;
+      const panel = document.getElementById('props-panel');
+      if (panel) panel.remove();
+    }
+  }
+  if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+  if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) { e.preventDefault(); redo(); }
+});
+
+// === 工具栏按钮 ===
+document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.activeTool = btn.dataset.tool;
+    state.selectedId = null;
+    const panel = document.getElementById('props-panel');
+    if (panel) panel.remove();
+    document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+document.getElementById('btn-undo')?.addEventListener('click', undo);
+document.getElementById('btn-redo')?.addEventListener('click', redo);
+
 // === 初始化时开始渲染循环 ===
 init = function() {
+  // 初始化历史记录
+  saveHistory();
   requestAnimationFrame(render);
 };
 init();
