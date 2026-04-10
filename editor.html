@@ -437,6 +437,87 @@ document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
 document.getElementById('btn-undo')?.addEventListener('click', undo);
 document.getElementById('btn-redo')?.addEventListener('click', redo);
 
+// === 导出 JS 代码 ===
+function exportLevelCode() {
+  const objects = state.objects.map(o => {
+    if (o.type === 'start') return `{ type:'start', x:${Math.round(o.x)}, y:${Math.round(o.y)} }`;
+    if (o.type === 'end')   return `{ type:'end',   x:${Math.round(o.x)}, y:${Math.round(o.y)}, radius:${o.radius||40} }`;
+    if (o.type === 'circle') return `{ type:'circle', x:${Math.round(o.x)}, y:${Math.round(o.y)}, radius:${o.radius||30} }`;
+    if (o.type === 'rect')  return `{ type:'rect',  x:${Math.round(o.x)}, y:${Math.round(o.y)}, w:${o.w||60}, h:${o.h||40} }`;
+    return null;
+  }).filter(Boolean);
+
+  const code = `// 关卡数据\nconst LEVEL_W = ${state.worldWidth};\nconst LEVEL_H = ${state.worldHeight};\nconst fishScale = ${state.fishScale};\nconst levelObjects = [\n  ${objects.join(',\n  ')}\n];`;
+  return code;
+}
+
+// === 显示导出弹窗 ===
+document.getElementById('btn-export')?.addEventListener('click', () => {
+  const code = exportLevelCode();
+  const textarea = document.getElementById('export-code');
+  textarea.value = code;
+  document.getElementById('modal').classList.add('show');
+});
+
+// === 关闭弹窗 ===
+document.getElementById('modal-close')?.addEventListener('click', () => {
+  document.getElementById('modal').classList.remove('show');
+});
+document.getElementById('modal')?.addEventListener('click', e => {
+  if (e.target === document.getElementById('modal')) {
+    document.getElementById('modal').classList.remove('show');
+  }
+});
+
+// === 复制到剪贴板 ===
+function setupCopyBtn() {
+  const modalActions = document.getElementById('modal-actions');
+  if (!document.getElementById('btn-copy')) {
+    const copyBtn = document.createElement('button');
+    copyBtn.id = 'btn-copy';
+    copyBtn.className = 'tool-btn';
+    copyBtn.textContent = '📋 复制';
+    copyBtn.style.cssText = 'background:#0af;color:#000;border-color:#0af;';
+    copyBtn.addEventListener('click', () => {
+      const code = document.getElementById('export-code').value;
+      navigator.clipboard?.writeText(code).then(() => {
+        copyBtn.textContent = '✅ 已复制!';
+        setTimeout(() => { copyBtn.textContent = '📋 复制'; }, 1500);
+      }).catch(() => {
+        document.getElementById('export-code').select();
+        document.execCommand('copy');
+        copyBtn.textContent = '✅ 已复制!';
+        setTimeout(() => { copyBtn.textContent = '📋 复制'; }, 1500);
+      });
+    });
+    modalActions.prepend(copyBtn);
+  }
+}
+setupCopyBtn();
+
+// === 加载 JSON ===
+document.getElementById('btn-load')?.addEventListener('click', () => {
+  const json = prompt('粘贴关卡 JSON：');
+  if (!json) return;
+  try {
+    const data = JSON.parse(json);
+    if (data.worldWidth) state.worldWidth = data.worldWidth;
+    if (data.worldHeight) state.worldHeight = data.worldHeight;
+    if (data.fishScale) state.fishScale = data.fishScale;
+    if (Array.isArray(data.objects)) {
+      state.objects = data.objects.map(o => ({ ...o, id: state.nextId++ }));
+      const maxId = Math.max(0, ...state.objects.map(o => o.id));
+      state.nextId = maxId + 1;
+    }
+    saveHistory();
+    state.selectedId = null;
+    const panel = document.getElementById('props-panel');
+    if (panel) panel.remove();
+  } catch (e) {
+    alert('JSON 格式错误: ' + e.message);
+  }
+});
+
 // === 初始化时开始渲染循环 ===
 init = function() {
   // 初始化历史记录
