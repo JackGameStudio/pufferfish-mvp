@@ -300,10 +300,10 @@ canvas.addEventListener('mousedown', e => {
   const edge = worldResizeHitTest(sx, sy);
   if (edge) {
     worldResize = { edge, startX: sx, startY: sy, startW: state.worldWidth, startH: state.worldHeight };
+    e.stopImmediatePropagation();  // 阻止后续监听器
     e.preventDefault();
-    return;
   }
-});
+}, { capture: true });  // 优先执行
 
 canvas.addEventListener('mousemove', e => {
   const rect = canvas.getBoundingClientRect();
