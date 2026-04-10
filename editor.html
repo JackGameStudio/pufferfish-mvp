@@ -178,25 +178,25 @@ function drawWorldBounds() {
 // === 绘制单个物体 ===
 function drawObject(obj, isSelected) {
   ctx.save();
-  const sx = (obj.x - state.worldWidth / 2) * viewScale + viewOffset.x;
-  const sy = (obj.y - state.worldHeight / 2) * viewScale + viewOffset.y;
+  const sx = (obj.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x;
+  const sy = (obj.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y;
 
   if (obj.type === 'start') {
     ctx.fillStyle = '#0f0';
-    ctx.beginPath(); ctx.arc(sx, sy, 12 * viewScale, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, 12 * state.viewScale, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = '10px Arial'; ctx.textAlign = 'center';
-    ctx.fillText('START', sx, sy + 25 * viewScale);
+    ctx.fillText('START', sx, sy + 25 * state.viewScale);
   } else if (obj.type === 'end') {
     ctx.fillStyle = '#08f';
-    ctx.beginPath(); ctx.arc(sx, sy, (obj.radius || 40) * viewScale, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, (obj.radius || 40) * state.viewScale, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = '10px Arial'; ctx.textAlign = 'center';
-    ctx.fillText('END', sx, sy + (obj.radius || 40) * viewScale + 15);
+    ctx.fillText('END', sx, sy + (obj.radius || 40) * state.viewScale + 15);
   } else if (obj.type === 'circle') {
     ctx.fillStyle = '#f00';
-    ctx.beginPath(); ctx.arc(sx, sy, (obj.radius || 30) * viewScale, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, (obj.radius || 30) * state.viewScale, 0, Math.PI * 2); ctx.fill();
   } else if (obj.type === 'rect') {
-    const rw = (obj.w || 60) * viewScale;
-    const rh = (obj.h || 40) * viewScale;
+    const rw = (obj.w || 60) * state.viewScale;
+    const rh = (obj.h || 40) * state.viewScale;
     ctx.fillStyle = 'rgba(0,80,180,0.25)';
     ctx.fillRect(sx - rw / 2, sy - rh / 2, rw, rh);
     ctx.strokeStyle = 'rgba(0,100,200,0.5)';
@@ -209,12 +209,12 @@ function drawObject(obj, isSelected) {
     ctx.strokeStyle = '#ff0';
     ctx.lineWidth = 2;
     if (obj.type === 'rect') {
-      const rw = (obj.w || 60) * viewScale;
-      const rh = (obj.h || 40) * viewScale;
+      const rw = (obj.w || 60) * state.viewScale;
+      const rh = (obj.h || 40) * state.viewScale;
       ctx.strokeRect(sx - rw / 2 - 3, sy - rh / 2 - 3, rw + 6, rh + 6);
     } else {
       ctx.beginPath();
-      ctx.arc(sx, sy, ((obj.type === 'end' ? obj.radius : obj.type === 'circle' ? obj.radius : 12) || 30) * viewScale + 5, 0, Math.PI * 2);
+      ctx.arc(sx, sy, ((obj.type === 'end' ? obj.radius : obj.type === 'circle' ? obj.radius : 12) || 30) * state.viewScale + 5, 0, Math.PI * 2);
       ctx.stroke();
     }
   }
