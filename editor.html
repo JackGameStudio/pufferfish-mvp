@@ -81,7 +81,7 @@
   </div>
 </div>
 <div id="shortcuts-bar">
-  <span>🎮 试玩: <b>←/→</b> 调整角度 &nbsp;|&nbsp; <b>空格</b> 发射 &nbsp;|&nbsp; <b>ESC</b> 退出</span>
+  <span>🎮 试玩: <b>鼠标按住</b> 膨胀旋转 &nbsp;|&nbsp; <b>松开</b> 发射 &nbsp;|&nbsp; <b>ESC</b> 退出</span>
   <span>✏️ 编辑: <b>Ctrl+Z</b> 撤销 &nbsp;|&nbsp; <b>Ctrl+Y</b> 重做 &nbsp;|&nbsp; <b>Delete</b> / <b>Backspace</b> 删除选中</span>
 </div>
 <div id="modal">
@@ -653,10 +653,11 @@ document.getElementById('btn-load')?.addEventListener('click', () => {
 });
 
 // ==============================================
-// 试玩模式
+// 试玩模式 - 原游戏鱼逻辑
 // ==============================================
 
-let playState = null;   // null | { fish, angle, phase, vel, pos, launched, hitCount }
+let playState = null;   // { fish, input, phase, startTime }
+let playMouseHandler = null;
 
 function startPlayMode() {
   const start = state.objects.find(o => o.type === 'start');
@@ -665,21 +666,44 @@ function startPlayMode() {
   if (!end) { alert('请先放置终点！'); return; }
 
   state.mode = 'play';
-  state.playFish = { x: start.x, y: start.y, angle: -Math.PI / 4, scale: state.fishScale };
-  state.playInput = { angle: -Math.PI / 4 };
-  state.playCamera = { x: state.playFish.x, y: state.playFish.y };
+
+  // 初始化鱼（原游戏参数）
+  const fish = {
+    x: start.x,
+    y: start.y,
+    radius: 20,
+    vx: 0,
+    vy: 0,
+    scale: 1.0,
+    inflate: 0,
+    maxInflate: 1.0,
+    launchVel: 900,
+    friction: 0.992,
+    rotation: -Math.PI / 2,
+    rotSpeed: 6,
+    hp: 100,
+    maxHp: 100,
+    invincible: 0,
+    waveAmp: 0,
+    waveOffset: 0,
+    launchScale: 1.0,
+    launchTime: 0
+  };
+
+  // 输入状态
+  const input = {
+    clicking: false,
+    lastClick: false
+  };
 
   playState = {
-    phase: 'aim',    // 'aim' | 'fly' | 'win' | 'dead'
-    angle: state.playFish.angle,
-    vel: { x: 0, y: 0 },
-    pos: { x: state.playFish.x, y: state.playFish.y },
-    launched: false,
-    hitCount: 0,
-    aimTimer: 0,
-    aimDir: 1,       // 旋转方向
-    startTime: Date.now(),
+    fish,
+    input,
+    phase: 'play',    // 'play' | 'win' | 'dead'
+    startTime: Date.now()
   };
+
+  state.playCamera = { x: fish.x, y: fish.y };
 
   document.getElementById('btn-play').textContent = '⏹ 退出';
   document.getElementById('btn-play').classList.add('active');
@@ -688,166 +712,222 @@ function startPlayMode() {
   const hud = document.createElement('div');
   hud.id = 'play-hud';
   hud.style.cssText = 'position:fixed;bottom:12px;right:12px;background:rgba(0,0,0,0.75);color:#fff;padding:8px 14px;border-radius:6px;font-size:13px;z-index:20;pointer-events:none;';
-  hud.innerHTML = '<b>🎮 试玩中</b> — 方向键调整角度 | 空格发射 | ESC退出';
+  hud.innerHTML = '<b>🎮 试玩中</b> — 鼠标按住膨胀 | 松开发射 | ESC退出';
   document.body.appendChild(hud);
 
-  // 方向键控制瞄准
-  window.addEventListener('keydown', playKeyHandler);
+  // 鼠标事件
+  playMouseHandler = (e) => {
+    if (state.mode !== 'play') return;
+    if (e.type === 'mousedown') {
+      input.clicking = true;
+    } else if (e.type === 'mouseup') {
+      input.clicking = false;
+    }
+  };
+  canvas.addEventListener('mousedown', playMouseHandler);
+  canvas.addEventListener('mouseup', playMouseHandler);
+
+  // ESC 退出
+  window.addEventListener('keydown', playEscHandler);
+
   requestAnimationFrame(playLoop);
+}
+
+function playEscHandler(e) {
+  if (e.key === 'Escape' && state.mode === 'play') {
+    stopPlayMode();
+  }
 }
 
 function stopPlayMode() {
   state.mode = 'edit';
+  if (playMouseHandler) {
+    canvas.removeEventListener('mousedown', playMouseHandler);
+    canvas.removeEventListener('mouseup', playMouseHandler);
+    playMouseHandler = null;
+  }
+  window.removeEventListener('keydown', playEscHandler);
   playState = null;
-  window.removeEventListener('keydown', playKeyHandler);
   document.getElementById('play-hud')?.remove();
   document.getElementById('btn-play').textContent = '▶️ 试玩';
   document.getElementById('btn-play').classList.remove('active');
+  initCamera();  // 恢复摄像机
 }
 
-function playKeyHandler(e) {
-  if (!playState) return;
-  if (e.key === 'Escape') { stopPlayMode(); return; }
-  if (playState.phase === 'aim') {
-    const speed = 0.06;
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-      playState.angle -= speed; playState.aimDir = -1;
-    }
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-      playState.angle += speed; playState.aimDir = 1;
-    }
-    if (e.key === ' ') {
-      e.preventDefault();
-      // 发射！
-      const speed2 = 15;
-      playState.vel.x = Math.cos(playState.angle) * speed2;
-      playState.vel.y = Math.sin(playState.angle) * speed2;
-      playState.phase = 'fly';
-      playState.launched = true;
-    }
-  }
-}
+// 碰撞检测（原游戏逻辑）
+function playCheckCollision(fish) {
+  const r = fish.radius * fish.scale;
+  const isInflatingMax = fish.scale >= 1.8 * 0.95;
 
-function playCircleCollide(px, py, cx, cy, r) {
-  const dx = px - cx, dy = py - cy;
-  const d = Math.sqrt(dx * dx + dy * dy);
-  if (d < r + 8) {
-    const nx = dx / d, ny = dy / d;
-    // 反射速度
-    const dot = playState.vel.x * nx + playState.vel.y * ny;
-    if (dot < 0) {
-      playState.vel.x -= 2 * dot * nx;
-      playState.vel.y -= 2 * dot * ny;
+  for (const obj of state.objects) {
+    if (obj.type === 'rect') {
+      // 矩形碰撞
+      const cx = Math.max(obj.x - obj.w / 2, Math.min(fish.x, obj.x + obj.w / 2));
+      const cy = Math.max(obj.y - obj.h / 2, Math.min(fish.y, obj.y + obj.h / 2));
+      const dx = fish.x - cx, dy = fish.y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < r) {
+        const overlap = r - dist;
+        let nx = dist > 0 ? dx / dist : 1, ny = dist > 0 ? dy / dist : 0;
+        fish.x += nx * overlap;
+        fish.y += ny * overlap;
+        const speed = Math.sqrt(fish.vx * fish.vx + fish.vy * fish.vy);
+        fish.vx = nx * speed * 0.8;
+        fish.vy = ny * speed * 0.8;
+        return;
+      }
+    } else if (obj.type === 'circle') {
+      // 圆形碰撞
+      const dx = fish.x - obj.x, dy = fish.y - obj.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const objRadius = obj.radius || 30;
+      if (dist < r + objRadius) {
+        const overlap = r + objRadius - dist;
+        const nx = dx / dist, ny = dy / dist;
+        fish.x += nx * overlap;
+        fish.y += ny * overlap;
+        const speed = Math.sqrt(fish.vx * fish.vx + fish.vy * fish.vy);
+        fish.vx = nx * speed * 0.8;
+        fish.vy = ny * speed * 0.8;
+        // 伤害（膨胀到95%以上无敌）
+        if (fish.invincible <= 0 && !isInflatingMax) {
+          const dmg = 10 + (fish.scale - 1) * 40;
+          fish.hp -= dmg;
+          fish.invincible = 0.5;
+          if (fish.hp <= 0) {
+            fish.hp = 0;
+            playState.phase = 'dead';
+          }
+        }
+        return;
+      }
     }
-    // 推出碰撞区
-    playState.pos.x = cx + nx * (r + 9);
-    playState.pos.y = cy + ny * (r + 9);
-    return true;
   }
-  return false;
-}
-
-function playRectCollide(px, py, rw, rh, rx, ry) {
-  const hw = rw / 2, hh = rh / 2;
-  const cx = rx, cy = ry;
-  const nx = Math.max(cx - hw, Math.min(px, cx + hw));
-  const ny = Math.max(cy - hh, Math.min(py, cy + hh));
-  const dx = px - nx, dy = py - ny;
-  const d = Math.sqrt(dx * dx + dy * dy);
-  if (d < 9) {
-    if (d > 0) {
-      playState.vel.x += dx / d * (9 - d + 1);
-      playState.vel.y += dy / d * (9 - d + 1);
-    }
-    // push out
-    if (Math.abs(dx) > Math.abs(dy)) {
-      playState.vel.x *= -0.8;
-      playState.pos.x = dx > 0 ? cx + hw + 1 : cx - hw - 1;
-    } else {
-      playState.vel.y *= -0.8;
-      playState.pos.y = dy > 0 ? cy + hh + 1 : cy - hh - 1;
-    }
-    return true;
-  }
-  return false;
 }
 
 function playLoop() {
   if (state.mode !== 'play' || !playState) return;
 
+  const { fish, input } = playState;
   const dt = 1 / 60;
-  if (playState.phase === 'fly') {
-    // 重力
-    playState.vel.y += 0.5;
-    playState.pos.x += playState.vel.x;
-    playState.pos.y += playState.vel.y;
-    playState.hitCount++;
 
-    // 边界反弹
-    const hw = state.worldWidth / 2, hh = state.worldHeight / 2;
-    if (playState.pos.x < -hw + 8) { playState.pos.x = -hw + 8; playState.vel.x *= -0.8; }
-    if (playState.pos.x > hw - 8) { playState.pos.x = hw - 8; playState.vel.x *= -0.8; }
-    if (playState.pos.y > hh - 8) { playState.pos.y = hh - 8; playState.vel.y *= -0.8; }
-    if (playState.pos.y < -hh + 8) { playState.vel.y *= -0.8; }
+  // === 物理更新（原游戏逻辑）===
+  const released = input.lastClick && !input.clicking;
+  input.lastClick = input.clicking;
 
-    // 障碍碰撞
-    for (const obj of state.objects) {
-      if (obj.type === 'circle') {
-        playCircleCollide(playState.pos.x, playState.pos.y, obj.x, obj.y, obj.radius || 30);
-      } else if (obj.type === 'rect') {
-        playRectCollide(playState.pos.x, playState.pos.y, obj.w || 60, obj.h || 40, obj.x, obj.y);
-      }
-    }
+  const maxScale = 1.8;
+  const inflateRate = (maxScale - 1) / 1.0;
+  const deflateRate = (maxScale - 1) / 0.5;
 
-    // 终点检测
-    const end = state.objects.find(o => o.type === 'end');
-    if (end) {
-      const dx = playState.pos.x - end.x, dy = playState.pos.y - end.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < (end.radius || 40) + 5) {
-        playState.phase = 'win';
-        setTimeout(() => {
-          alert('🎉 通关！用了 ' + playState.hitCount + ' 次弹射');
-          stopPlayMode();
-        }, 100);
-        requestAnimationFrame(playLoop);
-        return;
-      }
-    }
+  // 膨胀/收缩
+  if (input.clicking) {
+    fish.scale = Math.min(fish.scale + inflateRate * dt, maxScale);
+    fish.rotation += fish.rotSpeed * dt;
+  } else {
+    fish.scale = Math.max(fish.scale - deflateRate * dt, 1.0);
+  }
+  fish.inflate = (fish.scale - 1) / (maxScale - 1) * fish.maxInflate;
 
-    // 超时自动重置
-    if (Date.now() - playState.startTime > 20000) {
-      playState.phase = 'dead';
-      setTimeout(() => {
-        alert('😵 掉出边界太久，重新开始！');
-        stopPlayMode();
-        setTimeout(startPlayMode, 50);
-      }, 100);
-      requestAnimationFrame(playLoop);
-      return;
+  // 发射
+  if (released && fish.inflate > 0.2) {
+    const power = fish.inflate / fish.maxInflate;
+    const dir = fish.rotation + Math.PI;
+    fish.vx = Math.cos(dir) * fish.launchVel * power;
+    fish.vy = Math.sin(dir) * fish.launchVel * power;
+    fish.launchScale = fish.scale;
+    fish.launchTime = 0;
+    fish.waveAmp = power * 25;
+    fish.inflate = 0;
+    fish.scale = 1.0;
+  }
+
+  // 发射后缩放动画
+  if (fish.launchScale > 1.01 && fish.launchTime < 2.0) {
+    fish.launchTime += dt;
+    const progress = Math.min(fish.launchTime / 2.0, 1.0);
+    if (!input.clicking) {
+      fish.scale = fish.launchScale * (1 - progress) + 1.0 * progress;
+    } else {
+      fish.launchScale = 1.0;
+      fish.launchTime = 2.0;
     }
   }
 
-  // 更新摄像机
+  // 波动效果
+  if (fish.waveAmp > 0) {
+    fish.waveOffset += dt * 30;
+    const wave = Math.sin(fish.waveOffset) * fish.waveAmp;
+    const speed = Math.sqrt(fish.vx * fish.vx + fish.vy * fish.vy);
+    if (speed > 10) {
+      fish.x += (-fish.vy / speed) * wave * dt;
+      fish.y += (fish.vx / speed) * wave * dt;
+    }
+    fish.waveAmp *= 0.97;
+    if (fish.waveAmp < 0.5) fish.waveAmp = 0;
+  }
+
+  // 摩擦力
+  fish.vx *= fish.friction;
+  fish.vy *= fish.friction;
+  const speed = Math.sqrt(fish.vx * fish.vx + fish.vy * fish.vy);
+  if (speed < 5) { fish.vx = 0; fish.vy = 0; }
+
+  // 旋转跟随速度方向
+  if (speed > 10 && !input.clicking) {
+    const targetRot = Math.atan2(fish.vy, fish.vx);
+    let diff = targetRot - fish.rotation;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    fish.rotation += diff * 5 * dt;
+  }
+
+  // 移动
+  fish.x += fish.vx * dt;
+  fish.y += fish.vy * dt;
+  if (fish.invincible > 0) fish.invincible -= dt;
+
+  // 世界边界
+  const m = fish.radius * fish.scale;
+  if (fish.x < m) { fish.x = m; fish.vx = Math.abs(fish.vx) * 0.8; }
+  if (fish.x > state.worldWidth - m) { fish.x = state.worldWidth - m; fish.vx = -Math.abs(fish.vx) * 0.8; }
+  if (fish.y < m) { fish.y = m; fish.vy = Math.abs(fish.vy) * 0.8; }
+  if (fish.y > state.worldHeight - m) { fish.y = state.worldHeight - m; fish.vy = -Math.abs(fish.vy) * 0.8; }
+
+  // 碰撞检测
+  playCheckCollision(fish);
+
+  // 终点检测
+  const end = state.objects.find(o => o.type === 'end');
+  if (end && playState.phase === 'play') {
+    const dx = fish.x - end.x, dy = fish.y - end.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < (end.radius || 40)) {
+      playState.phase = 'win';
+    }
+  }
+
+  // 死亡检测
+  if (fish.hp <= 0 && playState.phase === 'play') {
+    playState.phase = 'dead';
+  }
+
+  // === 更新摄像机 ===
   if (state.playCamera) {
-    const tx = state.playCamera.x + (playState.pos.x - state.playCamera.x) * 0.08;
-    const ty = state.playCamera.y + (playState.pos.y - state.playCamera.y) * 0.08;
-    state.playCamera.x = tx;
-    state.playCamera.y = ty;
+    state.playCamera.x += (fish.x - state.playCamera.x) * 0.08;
+    state.playCamera.y += (fish.y - state.playCamera.y) * 0.08;
   }
 
-  // 渲染试玩画面（覆盖在编辑器画布上）
+  // === 渲染 ===
   const prevOffset = { ...state.viewOffset };
   const prevScale = state.viewScale;
+
   if (state.playCamera) {
-    // viewOffset 应让摄像机世界坐标渲染到屏幕中心
-    state.viewOffset = { 
-      x: canvas.width / 2 - (state.playCamera.x - state.worldWidth / 2) * state.viewScale, 
-      y: canvas.height / 2 - (state.playCamera.y - state.worldHeight / 2) * state.viewScale 
+    state.viewOffset = {
+      x: canvas.width / 2 - (state.playCamera.x - state.worldWidth / 2) * state.viewScale,
+      y: canvas.height / 2 - (state.playCamera.y - state.worldHeight / 2) * state.viewScale
     };
   }
 
-  // 绘制游戏画面
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // 背景
@@ -857,7 +937,7 @@ function playLoop() {
   // 边界
   drawWorldBounds();
 
-  // 障碍物（红色/橙色）
+  // 障碍物
   for (const obj of state.objects) {
     if (obj.type === 'circle' || obj.type === 'rect') {
       ctx.save();
@@ -879,69 +959,105 @@ function playLoop() {
   }
 
   // 终点
-  const end2 = state.objects.find(o => o.type === 'end');
-  if (end2) {
+  if (end) {
     ctx.save();
-    const sx = (end2.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x;
-    const sy = (end2.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y;
+    const sx = (end.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x;
+    const sy = (end.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y;
     ctx.fillStyle = '#08f';
-    ctx.beginPath(); ctx.arc(sx, sy, (end2.radius || 40) * state.viewScale, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, (end.radius || 40) * state.viewScale, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
 
-  // 弹射轨迹预览（瞄准时）
-  if (playState.phase === 'aim') {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,0,0.5)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([8, 6]);
-    ctx.beginPath();
-    ctx.moveTo(
-      (playState.pos.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x,
-      (playState.pos.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y
-    );
-    const len = 60;
-    ctx.lineTo(
-      (playState.pos.x + Math.cos(playState.angle) * len - state.worldWidth / 2) * state.viewScale + state.viewOffset.x,
-      (playState.pos.y + Math.sin(playState.angle) * len - state.worldHeight / 2) * state.viewScale + state.viewOffset.y
-    );
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // 绘制鱼
+  // 绘制鱼（原游戏绘制）
   ctx.save();
-  const fishX = (playState.pos.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x;
-  const fishY = (playState.pos.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y;
-  const fishR = 14 * (state.fishScale || 1) * state.viewScale;
+  const fishX = (fish.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x;
+  const fishY = (fish.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y;
   ctx.translate(fishX, fishY);
-  ctx.rotate(playState.vel.x !== 0 || playState.vel.y !== 0
-    ? Math.atan2(playState.vel.y, playState.vel.x)
-    : playState.angle);
+  ctx.rotate(fish.rotation);
+  const r = fish.radius * fish.scale * state.viewScale;
 
-  // 鱼身
-  ctx.fillStyle = '#ffd700';
-  ctx.beginPath(); ctx.arc(0, 0, fishR, 0, Math.PI * 2); ctx.fill();
-  // 眼睛
-  ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.arc(fishR * 0.4, -fishR * 0.3, fishR * 0.25, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(fishR * 0.48, -fishR * 0.33, fishR * 0.1, 0, Math.PI * 2); ctx.fill();
-  // 鱼鳍
-  ctx.fillStyle = '#ff9900';
+  // 无敌闪烁
+  if (fish.invincible > 0 && Math.floor(fish.invincible * 10) % 2 === 0) ctx.globalAlpha = 0.5;
+
+  // 颜色
+  if (fish.hp <= 0) ctx.fillStyle = '#888';
+  else if (input.clicking && fish.inflate > 0) ctx.fillStyle = '#ff0';
+  else if (Math.sqrt(fish.vx * fish.vx + fish.vy * fish.vy) > 10) ctx.fillStyle = '#f60';
+  else ctx.fillStyle = '#0f0';
+
+  // 身体
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 1.3, r, 0, 0, Math.PI * 2); ctx.fill();
+  // 尾巴
   ctx.beginPath();
-  ctx.moveTo(-fishR * 0.2, -fishR * 0.8);
-  ctx.lineTo(fishR * 0.1, -fishR * 0.3);
-  ctx.lineTo(-fishR * 0.5, -fishR * 0.2);
+  ctx.moveTo(-r * 0.8, 0);
+  ctx.lineTo(-r * 1.8, -r * 0.5);
+  ctx.lineTo(-r * 1.8, r * 0.5);
   ctx.closePath(); ctx.fill();
-
+  // 眼睛
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(r * 0.6, -r * 0.3, r * 0.25, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(r * 0.7, -r * 0.3, r * 0.12, 0, Math.PI * 2); ctx.fill();
+  // 方向指针
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(r * 0.8, 0); ctx.lineTo(r * 1.5, 0); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(r * 1.5, 0); ctx.lineTo(r * 1.2, -r * 0.3);
+  ctx.moveTo(r * 1.5, 0); ctx.lineTo(r * 1.2, r * 0.3);
+  ctx.stroke();
   ctx.restore();
 
-  // HUD信息
-  ctx.fillStyle = '#0f0';
-  ctx.font = '14px monospace';
-  ctx.fillText(`命中: ${playState.hitCount}`, 12, canvas.height - 14);
-  if (playState.phase === 'win') ctx.fillText('🎉 通关！', 12, canvas.height - 36);
+  // HP 条
+  ctx.fillStyle = '#333';
+  ctx.fillRect(10, 10, 200, 20);
+  ctx.fillStyle = fish.hp > 30 ? '#0f0' : '#f00';
+  ctx.fillRect(10, 10, 200 * (fish.hp / fish.maxHp), 20);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(10, 10, 200, 20);
+  ctx.fillStyle = '#fff';
+  ctx.font = '14px Arial';
+  ctx.fillText(`HP: ${Math.round(fish.hp)}/${fish.maxHp}`, 15, 26);
+
+  // 状态提示
+  if (playState.phase === 'win') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0f0';
+    ctx.font = '48px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('🎉 通关！', canvas.width / 2, canvas.height / 2);
+    ctx.font = '20px Arial';
+    ctx.fillText('点击任意位置返回编辑器', canvas.width / 2, canvas.height / 2 + 40);
+    ctx.textAlign = 'left';
+    // 点击返回
+    const clickHandler = () => {
+      canvas.removeEventListener('click', clickHandler);
+      stopPlayMode();
+    };
+    canvas.addEventListener('click', clickHandler);
+    return;
+  }
+
+  if (playState.phase === 'dead') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#f00';
+    ctx.font = '48px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('💀 游戏结束', canvas.width / 2, canvas.height / 2);
+    ctx.font = '20px Arial';
+    ctx.fillText('点击重新开始', canvas.width / 2, canvas.height / 2 + 40);
+    ctx.textAlign = 'left';
+    // 点击重试
+    const clickHandler = () => {
+      canvas.removeEventListener('click', clickHandler);
+      stopPlayMode();
+      setTimeout(startPlayMode, 50);
+    };
+    canvas.addEventListener('click', clickHandler);
+    return;
+  }
 
   // 恢复视图
   state.viewOffset = prevOffset;
