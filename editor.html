@@ -969,12 +969,13 @@ function playLoop() {
   }
 
   // 绘制鱼（原游戏绘制）
+  // 绘制鱼（相机变换只影响位置，不影响鱼的原始大小）
   ctx.save();
   const fishX = (fish.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x;
   const fishY = (fish.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y;
   ctx.translate(fishX, fishY);
   ctx.rotate(fish.rotation);
-  const r = fish.radius * fish.scale * state.viewScale;
+  const r = fish.radius * fish.scale;  // 鱼半径固定，不随 viewScale 缩放
 
   // 无敌闪烁
   if (fish.invincible > 0 && Math.floor(fish.invincible * 10) % 2 === 0) ctx.globalAlpha = 0.5;
@@ -1007,20 +1008,27 @@ function playLoop() {
   ctx.stroke();
   ctx.restore();
 
-  // HP 条
+  // HP 条（屏幕空间，固定位置和大小，不受相机影响）
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);  // 重置到屏幕坐标系
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(12, 12, 204, 24);
   ctx.fillStyle = '#333';
-  ctx.fillRect(10, 10, 200, 20);
+  ctx.fillRect(14, 14, 200, 20);
   ctx.fillStyle = fish.hp > 30 ? '#0f0' : '#f00';
-  ctx.fillRect(10, 10, 200 * (fish.hp / fish.maxHp), 20);
-  ctx.strokeStyle = '#fff';
+  ctx.fillRect(14, 14, 200 * (fish.hp / fish.maxHp), 20);
+  ctx.strokeStyle = fish.hp > 30 ? '#0f0' : '#f00';
   ctx.lineWidth = 2;
-  ctx.strokeRect(10, 10, 200, 20);
+  ctx.strokeRect(14, 14, 200, 20);
   ctx.fillStyle = '#fff';
-  ctx.font = '14px Arial';
-  ctx.fillText(`HP: ${Math.round(fish.hp)}/${fish.maxHp}`, 15, 26);
+  ctx.font = 'bold 13px Arial';
+  ctx.fillText(`HP ${Math.round(fish.hp)}/${fish.maxHp}`, 18, 28);
+  ctx.restore();
 
-  // 状态提示
+  // 状态提示（屏幕空间）
   if (playState.phase === 'win') {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#0f0';
@@ -1030,6 +1038,7 @@ function playLoop() {
     ctx.font = '20px Arial';
     ctx.fillText('点击任意位置返回编辑器', canvas.width / 2, canvas.height / 2 + 40);
     ctx.textAlign = 'left';
+    ctx.restore();
     // 点击返回
     const clickHandler = () => {
       canvas.removeEventListener('click', clickHandler);
@@ -1040,6 +1049,8 @@ function playLoop() {
   }
 
   if (playState.phase === 'dead') {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#f00';
@@ -1049,6 +1060,7 @@ function playLoop() {
     ctx.font = '20px Arial';
     ctx.fillText('点击重新开始', canvas.width / 2, canvas.height / 2 + 40);
     ctx.textAlign = 'left';
+    ctx.restore();
     // 点击重试
     const clickHandler = () => {
       canvas.removeEventListener('click', clickHandler);
