@@ -300,10 +300,11 @@ canvas.addEventListener('mousedown', e => {
   const edge = worldResizeHitTest(sx, sy);
   if (edge) {
     worldResize = { edge, startX: sx, startY: sy, startW: state.worldWidth, startH: state.worldHeight };
-    e.stopImmediatePropagation();  // 阻止后续监听器
+    e.stopImmediatePropagation();  // 只有拖拽边缘时才阻止，防止干扰物体拖拽
     e.preventDefault();
   }
-}, { capture: true });  // 优先执行
+  // 不阻止正常点击，让其他监听器正常工作（试玩模式的 playMouseHandler 等）
+}, { capture: true });  // 优先检测边缘
 
 canvas.addEventListener('mousemove', e => {
   const rect = canvas.getBoundingClientRect();
@@ -639,7 +640,13 @@ document.getElementById('btn-load')?.addEventListener('click', () => {
     if (data.worldHeight) state.worldHeight = data.worldHeight;
     if (data.fishScale) state.fishScale = data.fishScale;
     if (Array.isArray(data.objects)) {
-      state.objects = data.objects.map(o => ({ ...o, id: state.nextId++ }));
+      // 保留编辑器已有的 start/end（避免覆盖当前关卡起终点）
+      // JSON 中的 start/end 会被过滤掉（编辑器手动放置）
+      const existingSpecial = state.objects.filter(o => o.type === 'start' || o.type === 'end');
+      const newObstacles = data.objects
+        .filter(o => o.type !== 'start' && o.type !== 'end')
+        .map(o => ({ ...o, id: state.nextId++ }));
+      state.objects = [...existingSpecial, ...newObstacles];
       const maxId = Math.max(0, ...state.objects.map(o => o.id));
       state.nextId = maxId + 1;
     }
@@ -658,6 +665,7 @@ document.getElementById('btn-load')?.addEventListener('click', () => {
 
 let playState = null;   // { fish, input, phase, startTime }
 let playMouseHandler = null;
+let playClickHandled = false;  // 防止 win/dead 每帧重复注册 click 监听器
 
 function startPlayMode() {
   const start = state.objects.find(o => o.type === 'start');
@@ -748,6 +756,7 @@ function stopPlayMode() {
   }
   window.removeEventListener('keydown', playEscHandler);
   playState = null;
+  playClickHandled = false;  // 重置，避免下次残留
   document.getElementById('play-hud')?.remove();
   document.getElementById('btn-play').textContent = '▶️ 试玩';
   document.getElementById('btn-play').classList.remove('active');
@@ -944,7 +953,7 @@ function playLoop() {
       const sx = (obj.x - state.worldWidth / 2) * state.viewScale + state.viewOffset.x;
       const sy = (obj.y - state.worldHeight / 2) * state.viewScale + state.viewOffset.y;
       if (obj.type === 'circle') {
-        ctx.fillStyle = '#f33';
+        ctx.fillStyle = '#f33';  // 显式设颜色，避免受 drawWorldBounds 遗留样式影响
         ctx.beginPath(); ctx.arc(sx, sy, (obj.radius || 30) * state.viewScale, 0, Math.PI * 2); ctx.fill();
       } else {
         const rw = (obj.w || 60) * state.viewScale, rh = (obj.h || 40) * state.viewScale;
@@ -1026,48 +1035,28 @@ function playLoop() {
   ctx.restore();
 
   // 状态提示（屏幕空间）
-  if (playState.phase === 'win') {
+  if (playState.phase === 'win' || playState.phase === 'dead') {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#0f0';
+    ctx.fillStyle = playState.phase === 'win' ? '#0f0' : '#f00';
     ctx.font = '48px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('🎉 通关！', canvas.width / 2, canvas.height / 2);
+    ctx.fillText(playState.phase === 'win' ? '🎉 通关！' : '💀 游戏结束', canvas.width / 2, canvas.height / 2);
     ctx.font = '20px Arial';
-    ctx.fillText('点击任意位置返回编辑器', canvas.width / 2, canvas.height / 2 + 40);
+    ctx.fillText(playState.phase === 'win' ? '点击任意位置返回编辑器' : '点击重新开始', canvas.width / 2, canvas.height / 2 + 40);
     ctx.textAlign = 'left';
     ctx.restore();
-    // 点击返回
-    const clickHandler = () => {
-      canvas.removeEventListener('click', clickHandler);
-      stopPlayMode();
-    };
-    canvas.addEventListener('click', clickHandler);
-    return;
-  }
-
-  if (playState.phase === 'dead') {
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#f00';
-    ctx.font = '48px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('💀 游戏结束', canvas.width / 2, canvas.height / 2);
-    ctx.font = '20px Arial';
-    ctx.fillText('点击重新开始', canvas.width / 2, canvas.height / 2 + 40);
-    ctx.textAlign = 'left';
-    ctx.restore();
-    // 点击重试
-    const clickHandler = () => {
-      canvas.removeEventListener('click', clickHandler);
-      stopPlayMode();
-      setTimeout(startPlayMode, 50);
-    };
-    canvas.addEventListener('click', clickHandler);
+    // 一次性 click 监听器（不用每帧注册，只加一次）
+    if (!playClickHandled) {
+      playClickHandled = true;
+      canvas.addEventListener('click', function _once() {
+        canvas.removeEventListener('click', _once);
+        stopPlayMode();
+        if (playState?.phase === 'dead') setTimeout(startPlayMode, 50);
+      });
+    }
     return;
   }
 
