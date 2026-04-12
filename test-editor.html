@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>编辑器测试</title>
+</head>
+<body>
+<h2>测试结果</h2>
+<pre id="log"></pre>
+
+<script>
+const log = document.getElementById('log');
+function out(msg) { log.textContent += msg + '\n'; }
+
+// 复制编辑器代码进行测试
+const state = {
+  worldWidth: 2200,
+  worldHeight: 750,
+  fishScale: 1.0,
+  objects: [],
+  history: [],
+  historyIndex: -1,
+  mode: 'edit',
+  selectedId: null,
+  activeTool: 'select',
+  viewOffset: { x: 0, y: 0 },
+  viewScale: 1.0,
+  dragState: null,
+  nextId: 1,
+};
+
+// 模拟 canvas 尺寸
+const canvasWidth = 1440;
+const canvasHeight = 900;
+
+// initCamera
+function initCamera() {
+  const scaleX = canvasWidth / state.worldWidth;
+  const scaleY = canvasHeight / state.worldHeight;
+  state.viewScale = Math.min(scaleX, scaleY) * 0.9;
+  state.viewOffset.x = canvasWidth / 2;
+  state.viewOffset.y = canvasHeight / 2;
+}
+initCamera();
+
+// screenToWorld
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - state.viewOffset.x) / state.viewScale + state.worldWidth / 2,
+    y: (sy - state.viewOffset.y) / state.viewScale + state.worldHeight / 2
+  };
+}
+
+// 添加一个测试物体
+const testObj = { id: 1, type: 'circle', x: 1100, y: 375, radius: 40 };
+state.objects.push(testObj);
+
+out('=== 初始状态 ===');
+out('viewScale: ' + state.viewScale.toFixed(4));
+out('viewOffset: (' + state.viewOffset.x + ', ' + state.viewOffset.y + ')');
+out('物体: ' + JSON.stringify(testObj));
+
+// 测试1：屏幕中心点击应该命中物体
+out('\n=== 测试1: 点击屏幕中心 ===');
+const centerScreen = { x: canvasWidth/2, y: canvasHeight/2 };
+const centerWorld = screenToWorld(centerScreen.x, centerScreen.y);
+out('屏幕坐标: (' + centerScreen.x + ', ' + centerScreen.y + ')');
+out('世界坐标: (' + centerWorld.x.toFixed(1) + ', ' + centerWorld.y.toFixed(1) + ')');
+out('物体位置: (' + testObj.x + ', ' + testObj.y + ')');
+out('距离: ' + Math.sqrt(Math.pow(centerWorld.x - testObj.x, 2) + Math.pow(centerWorld.y - testObj.y, 2)).toFixed(1));
+out('物体半径: ' + testObj.radius);
+out('应该命中: ' + (Math.sqrt(Math.pow(centerWorld.x - testObj.x, 2) + Math.pow(centerWorld.y - testObj.y, 2)) <= testObj.radius));
+
+// 测试2：偏移点击不应该命中
+out('\n=== 测试2: 点击物体边缘外 ===');
+const edgeScreen = { x: canvasWidth/2 + 50, y: canvasHeight/2 };
+const edgeWorld = screenToWorld(edgeScreen.x, edgeScreen.y);
+out('屏幕坐标: (' + edgeScreen.x + ', ' + edgeScreen.y + ')');
+out('世界坐标: (' + edgeWorld.x.toFixed(1) + ', ' + edgeWorld.y.toFixed(1) + ')');
+out('距离: ' + Math.sqrt(Math.pow(edgeWorld.x - testObj.x, 2) + Math.pow(edgeWorld.y - testObj.y, 2)).toFixed(1));
+
+// 测试3：放置新物体
+out('\n=== 测试3: 放置方块 ===');
+state.activeTool = 'rect';
+const placeScreen = { x: 200, y: 200 };
+const placeWorld = screenToWorld(placeScreen.x, placeScreen.y);
+const newObj = { id: 2, type: 'rect', x: placeWorld.x, y: placeWorld.y, w: 80, h: 40 };
+state.objects.push(newObj);
+out('放置屏幕坐标: (' + placeScreen.x + ', ' + placeScreen.y + ')');
+out('放置世界坐标: (' + placeWorld.x.toFixed(1) + ', ' + placeWorld.y.toFixed(1) + ')');
+out('物体数量: ' + state.objects.length);
+
+// 测试4：拖拽物体
+out('\n=== 测试4: 拖拽测试 ===');
+const dragStartScreen = { x: canvasWidth/2, y: canvasHeight/2 };
+const dragStartWorld = screenToWorld(dragStartScreen.x, dragStartScreen.y);
+const dragEndScreen = { x: canvasWidth/2 + 100, y: canvasHeight/2 + 50 };
+const dragEndWorld = screenToWorld(dragEndScreen.x, dragEndScreen.y);
+out('拖拽起点屏幕: (' + dragStartScreen.x + ', ' + dragStartScreen.y + ')');
+out('拖拽终点屏幕: (' + dragEndScreen.x + ', ' + dragEndScreen.y + ')');
+out('世界坐标变化: (' + (dragEndWorld.x - dragStartWorld.x).toFixed(1) + ', ' + (dragEndWorld.y - dragStartWorld.y).toFixed(1) + ')');
+
+out('\n=== 所有测试完成 ===');
+</script>
+</body>
+</html>
