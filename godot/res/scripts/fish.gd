@@ -133,7 +133,7 @@ func _start_charging() -> void:
 
 func _start_deflating() -> void:
     state = "flying"
-    fish_scale = max(fish_scale - deflate_rate * delta, 1.0)
+    fish_scale = max(fish_scale - deflate_rate * get_physics_process_delta_time(), 1.0)
     _update_sprite_transform()
 
 func _launch() -> void:
