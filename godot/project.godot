@@ -21,6 +21,18 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="viewport"
 
+[physics]
+common/physics_ticks_per_second = 60
+2d/default_gravity = 0.0
+2d/default_linear_damp = 0.0
+2d/default_angular_damp = 0.0
+
+[layer_names]
+
+2d_physics/layer_1 = "fish"
+2d_physics/layer_2 = "obstacles"
+2d_physics/layer_3 = "walls"
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

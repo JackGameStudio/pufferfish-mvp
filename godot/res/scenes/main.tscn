@@ -29,6 +29,8 @@ grow_vertical = 2
 script = ExtResource("4_hud")
 
 [node name="WorldBounds" type="StaticBody2D" parent="."]
+collision_layer = 4
+collision_mask = 0
 
 [node name="LeftWall" type="CollisionShape2D" parent="WorldBounds"]
 position = Vector2(-10, 1024)

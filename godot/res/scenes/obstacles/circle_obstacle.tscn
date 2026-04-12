@@ -4,6 +4,8 @@
 
 [node name="CircleObstacle" type="Area2D"]
 script = ExtResource("1_circle")
+collision_layer = 2
+collision_mask = 1
 radius = 1.4
 damage = 10.0
 damage_scale_factor = 40.0
