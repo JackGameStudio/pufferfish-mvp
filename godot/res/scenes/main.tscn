@@ -1,0 +1,51 @@
+[gd_scene load_steps=7 format=3 uid="uid://main_scene"]
+
+[ext_resource type="Script" path="res://scripts/game_manager.gd" id="1_mgr"]
+[ext_resource type="Script" path="res://scripts/level_loader.gd" id="2_level"]
+[ext_resource type="Script" path="res://scripts/camera_follow.gd" id="3_cam"]
+[ext_resource type="Script" path="res://scripts/hud.gd" id="4_hud"]
+[ext_resource type="PackedScene] uid="uid://fish_scene" path="res://scenes/player/fish.tscn" id="5_fish"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_mgr")
+
+[node name="LevelLoader" type="Node2D" parent="."]
+script = ExtResource("2_level")
+
+[node name="Fish" parent="." instance=ExtResource("5_fish")]
+position = Vector2(80, 450)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+script = ExtResource("3_cam")
+target_path = NodePath("../Fish")
+
+[node name="HUD" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_hud")
+
+[node name="WorldBounds" type="StaticBody2D" parent="."]
+
+[node name="LeftWall" type="CollisionShape2D" parent="WorldBounds"]
+position = Vector2(-10, 1024)
+shape = RectangleShape2D.new()
+shape.size = Vector2(20, 2100)
+
+[node name="RightWall" type="CollisionShape2D" parent="WorldBounds"]
+position = Vector2(4106, 1024)
+shape = RectangleShape2D.new()
+shape.size = Vector2(20, 2100)
+
+[node name="TopWall" type="CollisionShape2D" parent="WorldBounds"]
+position = Vector2(2048, -10)
+shape = RectangleShape2D.new()
+shape.size = Vector2(4200, 20)
+
+[node name="BottomWall" type="CollisionShape2D" parent="WorldBounds"]
+position = Vector2(2048, 2068)
+shape = RectangleShape2D.new()
+shape.size = Vector2(4200, 20)
