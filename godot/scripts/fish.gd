@@ -57,7 +57,7 @@ func _create_hit_area() -> void:
 	hit_area = Area2D.new()
 	hit_area.name = "HitArea"
 	hit_area.collision_layer = 0
-	hit_area.collision_mask = 2   # 检测 layer 2（circle + rect obstacle）
+	hit_area.collision_mask = 2   # 检测 layer 2（circle + rect obstacle），不检测 end_zone
 	hit_area.monitoring = true
 	hit_area.monitorable = false
 	add_child(hit_area)

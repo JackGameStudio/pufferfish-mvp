@@ -45,13 +45,5 @@ func sync_to_fish(fish_scale: float) -> void:
 	_create_sprite(new_size)
 
 func _on_body_entered(body: Node2D) -> void:
-	if body.is_in_group("fish"):
-		var fish = body as Fish
-		if fish == null:
-			return
-		var push_dir = (fish.position - position).normalized()
-		if push_dir.length() < 0.1:
-			push_dir = Vector2.RIGHT
-		fish.velocity += push_dir * 200
-		var dmg = damage + (fish.fish_scale - 1.0) * damage_scale_factor
-		fish.take_damage(dmg)
+	# circle_obstacle 的 body_entered 忽略，由 fish.gd 的主动查询统一处理
+	pass
