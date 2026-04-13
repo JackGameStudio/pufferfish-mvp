@@ -11,3 +11,5 @@ damage = 10.0
 damage_scale_factor = 40.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]

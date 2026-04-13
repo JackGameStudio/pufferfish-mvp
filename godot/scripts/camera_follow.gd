@@ -1,22 +1,20 @@
 extends Camera2D
 
-@export var target_path: NodePath
 @export var lerp_speed: float = 0.08
 
 var shake_timer: float = 0.0
 var shake_amount: float = 5.0
 
 func _ready() -> void:
-	if target_path:
-		var target = get_node(target_path)
-		if target:
-			position = target.position
+	# 初始对齐到鱼位置
+	var fish = get_tree().get_first_node_in_group("fish")
+	if fish:
+		position = fish.position
 
 func _physics_process(delta: float) -> void:
-	if target_path:
-		var target = get_node(target_path)
-		if target:
-			position = position.lerp(target.position, lerp_speed)
+	var fish = get_tree().get_first_node_in_group("fish")
+	if fish:
+		position = position.lerp(fish.position, lerp_speed)
 	
 	if shake_timer > 0:
 		shake_timer -= delta
