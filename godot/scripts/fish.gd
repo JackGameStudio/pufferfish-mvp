@@ -83,19 +83,26 @@ func _check_overlaps() -> void:
 func _handle_obstacle_hit(obstacle: Area2D) -> void:
 	if obstacle.is_in_group("circle_obstacle"):
 		# 圆形障碍物：推开 + 扣血
+		# 只有当鱼没有在远离障碍物时才推送（避免持续吸附）
 		var push_dir = (position - obstacle.position).normalized()
 		if push_dir.length() < 0.1:
 			push_dir = Vector2.RIGHT
-		velocity += push_dir * 220
+		var rel_vel = velocity.dot(push_dir)
+		if rel_vel < 50:
+			velocity += push_dir * 180
 		if not is_invincible():
 			var dmg = damage_base + (fish_scale - 1.0) * damage_scale_factor
 			take_damage(dmg)
 	elif obstacle.is_in_group("rect_obstacle"):
-		# 矩形障碍物：只推开，不扣血（rect_obstacle 自带推送）
+		# 矩形障碍物：只推开，不扣血
+		# 只有当鱼没有在远离障碍物时才推送（避免持续吸附）
 		var push_dir = (position - obstacle.position).normalized()
 		if push_dir.length() < 0.1:
 			push_dir = Vector2.RIGHT
-		velocity += push_dir * 180
+		# 检查是否已经在远离
+		var rel_vel = velocity.dot(push_dir)
+		if rel_vel < 50:  # 没有在远离（速度方向与推开方向相反或很小）
+			velocity += push_dir * 120
 
 # ─── 精灵 ─────────────────────────────────────────────────
 func _create_fish_texture() -> void:
