@@ -149,6 +149,26 @@ func _physics_process(delta: float) -> void:
 			fish_scale = min(fish_scale + inflate_rate * delta, max_scale)
 			rotation_angle += rot_speed * delta
 			_update_sprite_transform()
+			# 充气时继续滑行，不打断速度
+			if velocity.length() > 5:
+				var prev_vel = velocity
+				_apply_friction()
+				move_and_slide()
+				# 边界反弹
+				var bounds = _get_level_bounds()
+				var r = float(BASE_HALF_H) * fish_scale
+				if position.x - r < bounds.left:
+					position.x = bounds.left + r
+					velocity.x = abs(prev_vel.x) * bounce_coef
+				if position.x + r > bounds.right:
+					position.x = bounds.right - r
+					velocity.x = -abs(prev_vel.x) * bounce_coef
+				if position.y - r < bounds.top:
+					position.y = bounds.top + r
+					velocity.y = abs(prev_vel.y) * bounce_coef
+				if position.y + r > bounds.bottom:
+					position.y = bounds.bottom - r
+					velocity.y = -abs(prev_vel.y) * bounce_coef
 			if just_released and fish_scale > 1.16:
 				_launch()
 			elif not Input.is_action_pressed("ui_accept"):
