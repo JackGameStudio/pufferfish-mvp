@@ -29,8 +29,5 @@ func _create_sprite() -> void:
 	$Sprite2D.texture = ImageTexture.create_from_image(img)
 
 func _on_body_entered(body: Node2D) -> void:
-	if body.is_in_group("fish"):
-		var push_dir = (body.position - position).normalized()
-		if push_dir.length() < 0.1:
-			push_dir = Vector2.RIGHT
-		body.velocity += push_dir * 180
+	# rect_obstacle 自带 body_entered，但不再推送（fish.gd 已处理）
+	pass
