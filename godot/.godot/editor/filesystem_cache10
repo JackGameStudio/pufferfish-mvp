@@ -1,5 +1,5 @@
 72322a848ab928aa5c89f0cb78209805
-::res://::1776048848
+::res://::1776091245
 icon.svg::CompressedTexture2D::1424175938723167020::1776008641::1776048848::1::::<><><>0<>0<>5ef8370fa89efcd7fe2abdfb86bc2b61<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
 README.md::TextFile::-1::1776008828::0::1::::<><><>0<>0<><>::
 ::res://scenes/::1776008629
@@ -9,12 +9,12 @@ circle_obstacle.tscn::PackedScene::-1::1776047273::0::1::::<><><>0<>0<><>::res:/
 rect_obstacle.tscn::PackedScene::-1::1776047299::0::1::::<><><>0<>0<><>::res://scripts/rect_obstacle.gd
 ::res://scenes/player/::1776008511
 fish.tscn::PackedScene::-1::1776047064::0::1::::<><><>0<>0<><>::res://scripts/fish.gd
-::res://scripts/::1776047327
+::res://scripts/::1776048848
 camera_follow.gd::GDScript::8413297408830589857::1776047244::0::1::::<>Camera2D<><>0<>0<><>::
-circle_obstacle.gd::GDScript::3912200747874632106::1776047146::0::1::::CircleObstacle<>Area2D<><>0<>0<><>::
-fish.gd::GDScript::7256172141475533694::1776047117::0::1::::Fish<>CharacterBody2D<><>0<>0<><>::
+circle_obstacle.gd::GDScript::3912200747874632106::1776049714::0::1::::CircleObstacle<>Area2D<><>0<>0<><>::
+fish.gd::GDScript::7256172141475533694::1776050094::0::1::::Fish<>CharacterBody2D<><>0<>0<><>::
 game_manager.gd::GDScript::4057377612483756704::1776044261::0::1::::GameManager<>Node2D<><>0<>0<><>::
 hud.gd::GDScript::4132319649971553232::1776044473::0::1::::<>Control<><>0<>0<><>::
-level_loader.gd::GDScript::8886516042295471944::1776047225::0::1::::LevelLoader<>Node2D<><>0<>0<><>::
-rect_obstacle.gd::GDScript::9186103961485647252::1776047167::0::1::::RectObstacle<>Area2D<><>0<>0<><>::
+level_loader.gd::GDScript::8886516042295471944::1776049671::0::1::::LevelLoader<>Node2D<><>0<>0<><>::
+rect_obstacle.gd::GDScript::9186103961485647252::1776049686::0::1::::RectObstacle<>Area2D<><>0<>0<><>::
 ::res://sprites/::1776008447
