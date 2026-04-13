@@ -106,13 +106,13 @@ func _draw_triangle(img: Image, x1:int, y1:int, x2:int, y2:int, x3:int, y3:int, 
 				img.set_pixel(x, y, col)
 
 func _create_collision_shape() -> void:
-	var shape = EllipseShape2D.new()
-	shape.radius = Vector2(BASE_HALF_W, BASE_HALF_H)
+	# 碰撞体基准 = 视觉基准（32px直径），均匀缩放
+	var shape = CircleShape2D.new()
+	shape.radius = float(BASE_HALF_H)  # 16px，与精灵视觉直径一致
 	collision.shape = shape
 
 func _physics_process(delta: float) -> void:
 	_process_invincible(delta)
-	_sync_circle_obstacle_shapes()  # 实时同步圆形碰撞
 
 	var just_released = _was_charging and not Input.is_action_pressed("ui_accept")
 	_was_charging = Input.is_action_pressed("ui_accept")
@@ -201,17 +201,15 @@ func _get_fish_radius() -> float:
 	var base_r = mini(BASE_HALF_W, BASE_HALF_H)
 	return base_r * fish_scale
 
-func _sync_circle_obstacle_shapes() -> void:
-	# 调用障碍物的同步方法，同时更新碰撞+精灵
-	var obstacles = get_tree().get_nodes_in_group("circle_obstacle")
-	for obs in obstacles:
-		obs.sync_to_fish(fish_scale)
 
 func _update_sprite_transform() -> void:
 	sprite.rotation = rotation_angle
-	var sf = 1.0 + (fish_scale - 1.0) * 0.6
+	# 精灵视觉膨胀：轻微横向拉长模拟充气感
+	var sf = 1.0 + (fish_scale - 1.0) * 0.5
 	sprite.scale = Vector2(sf, fish_scale)
-	collision.scale = Vector2(fish_scale, fish_scale)
+	# 碰撞体均匀缩放 = shape.radius × fish_scale
+	if collision.shape:
+		collision.shape.radius = float(BASE_HALF_H) * fish_scale
 
 func _start_charging() -> void:
 	if state != "charging":
