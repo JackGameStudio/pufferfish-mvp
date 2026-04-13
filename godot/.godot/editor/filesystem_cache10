@@ -1,5 +1,5 @@
 72322a848ab928aa5c89f0cb78209805
-::res://::1776043930
+::res://::1776046395
 icon.svg::CompressedTexture2D::1424175938723167020::1776008641::1776043798::1::::<><><>0<>0<>5ef8370fa89efcd7fe2abdfb86bc2b61<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
 README.md::TextFile::-1::1776008828::0::1::::<><><>0<>0<><>::
 ::res://res/::1776008447
@@ -10,12 +10,12 @@ circle_obstacle.tscn::PackedScene::-1::1776008725::0::1::::<><><>0<>0<><>::res:/
 rect_obstacle.tscn::PackedScene::-1::1776008729::0::1::::<><><>0<>0<><>::res://scripts/rect_obstacle.gd
 ::res://res/scenes/player/::1776008511
 fish.tscn::PackedScene::-1::1776008719::0::1::::<><><>0<>0<><>::res://scripts/fish.gd
-::res://res/scripts/::1776043798
-camera_follow.gd::GDScript::3536161248760492063::1776008523::0::1::::<>Camera2D<><>0<>0<><>::
-circle_obstacle.gd::GDScript::3534422197390128799::1776008675::0::1::::CircleObstacle<>Area2D<><>0<>0<><>::
-fish.gd::GDScript::8904736812452552211::1776008773::0::1::::Fish<>CharacterBody2D<><>0<>0<><>::
-game_manager.gd::GDScript::3750532336278309651::1776008563::0::1::::GameManager<>Node2D<><>0<>0<><>::
-hud.gd::GDScript::1289080310105852794::1776008576::0::1::::<>Control<><>0<>0<><>::
-level_loader.gd::GDScript::7618014904348645697::1776008617::0::1::::LevelLoader<>Node2D<><>0<>0<><>::
-rect_obstacle.gd::GDScript::303991855419337362::1776008543::0::1::::RectObstacle<>Area2D<><>0<>0<><>::
+::res://res/scripts/::1776044261
+camera_follow.gd::GDScript::3536161248760492063::1776044501::0::1::::<>Camera2D<><>0<>0<><>::
+circle_obstacle.gd::GDScript::3534422197390128799::1776044539::0::1::::CircleObstacle<>Area2D<><>0<>0<><>::
+fish.gd::GDScript::8904736812452552211::1776044430::0::1::::Fish<>CharacterBody2D<><>0<>0<><>::
+game_manager.gd::GDScript::3750532336278309651::1776044261::0::1::::GameManager<>Node2D<><>0<>0<><>::
+hud.gd::GDScript::1289080310105852794::1776044473::0::1::::<>Control<><>0<>0<><>::
+level_loader.gd::GDScript::7618014904348645697::1776044492::0::1::::LevelLoader<>Node2D<><>0<>0<><>::
+rect_obstacle.gd::GDScript::303991855419337362::1776044261::0::1::::RectObstacle<>Area2D<><>0<>0<><>::
 ::res://res/sprites/::1776008447
