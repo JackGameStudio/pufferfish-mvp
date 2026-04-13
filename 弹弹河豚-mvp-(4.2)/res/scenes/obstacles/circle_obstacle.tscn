@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://circle_obstacle"]
+
+[ext_resource type="Script" path="res://scripts/circle_obstacle.gd" id="1_circle"]
+
+[node name="CircleObstacle" type="Area2D"]
+script = ExtResource("1_circle")
+collision_layer = 2
+collision_mask = 1
+radius = 1.4
+damage = 10.0
+damage_scale_factor = 40.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]

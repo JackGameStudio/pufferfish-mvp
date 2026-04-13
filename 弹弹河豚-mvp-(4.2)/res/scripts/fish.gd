@@ -34,9 +34,6 @@ var _was_charging: bool = false
 func _ready() -> void:
     add_to_group("fish")
     add_to_group("game")
-    # 连接碰撞信号
-    body_entered.connect(_on_body_entered)
-    area_entered.connect(_on_area_entered)
     # 白盒：用 Godot 内置形状，先用默认图标
     if not sprite.texture:
         # 创建一个简单的圆形纹理作为白盒
@@ -199,11 +196,12 @@ func _on_body_entered(body: Node2D) -> void:
 
 func _on_area_entered(area: Area2D) -> void:
     if area.is_in_group("circle_obstacle"):
-        # 圆形障碍（如果有 Area2D 类型的）
+        # 圆形障碍区域
         var push_dir = (position - area.position).normalized()
         if push_dir.length() < 0.1:
             push_dir = Vector2.RIGHT
         velocity += push_dir * 200
+        
         var dmg = damage_base + (fish_scale - 1.0) * damage_scale_factor
         take_damage(dmg)
     elif area.is_in_group("end_zone"):
